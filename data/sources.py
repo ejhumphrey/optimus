@@ -3,6 +3,7 @@
 
 import h5py
 from collections import OrderedDict
+import numpy as np
 
 from . import Entity
 from . import keyutils
@@ -14,7 +15,7 @@ class File(h5py.File):
     __KEYS__ = "__KEYS__"
     __ADDR__ = "__ADDR__"
     __WIDTH__ = 256
-    __DEPTH__ = 2
+    __DEPTH__ = 3
 
     def __init__(self, name, mode=None, selector=None, entity=None, **kwds):
         """writeme."""
@@ -93,38 +94,50 @@ class File(h5py.File):
         return self._item_gen.next()
 
 
-# class Cache(object):
-#     """writeme."""
+class Cache(object):
+    """writeme."""
 
-#     def __init__(self, refresh_prob, selector=None):
-#         """writeme."""
+    def __init__(self, refresh_prob, selector=None):
+        """writeme."""
 
-#         if selector is None:
-#             selector = selectors.permute_items
-#         self._selector = selector
+        if selector is None:
+            selector = selectors.permute_items
+        self._selector = selector
 
-#         self._data = dict()
-#         self._refresh_prob = refresh_prob
-#         self._item_gen = self._selector(self._data)
+        self._data = dict()
+        self._refresh_prob = refresh_prob
+        self._item_gen = self._selector(self._data)
 
-#     def get(self, key):
-#         """
-#         Fetch the Group for a given key.
-#         """
-#         return self._data.get(key)
+    def get(self, key):
+        """
+        Fetch the Group for a given key.
+        """
+        return self._data.get(key)
 
-#     def add(self, key, entity):
-#         """writeme."""
-#         self._data[key] = entity
-#         self._item_gen = self._selector(self._data)
+    def add(self, key, entity):
+        """writeme."""
+        self._data[key] = entity
+        self._item_gen = self._selector(self._data)
 
-#     def keys(self):
-#         """writeme."""
-#         return self._data.keys()
+    def keys(self):
+        """writeme."""
+        return self._data.keys()
 
-#     def __len__(self):
-#         return len(self._data)
+    def __len__(self):
+        return len(self._data)
 
-#     def next(self):
-#         """Return the next item."""
-#         return self._item_gen.next()
+    def __getitem__(self, key):
+        return self.get(key)
+
+    def remove(self, key, prob=1):
+        """Swap an existing key-value pair with a new one."""
+        # Refresh on success.
+        if np.random.binomial(1, p=prob):
+            print "Deleting %s" % key
+            self.remove(key)
+
+    def next(self):
+        """Return the next item."""
+        key, entity = self._item_gen.next()
+        self.remove(key, prob=self._refresh_prob)
+        return key, entity
