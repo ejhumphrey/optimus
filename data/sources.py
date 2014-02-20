@@ -5,7 +5,7 @@ import h5py
 from collections import OrderedDict
 import numpy as np
 
-from . import Entity
+from . import core
 from . import keyutils
 from . import selectors
 
@@ -17,22 +17,17 @@ class File(h5py.File):
     __WIDTH__ = 256
     __DEPTH__ = 3
 
-    def __init__(self, name, mode=None, selector=None, entity=None, **kwds):
+    def __init__(self, name, mode=None, entity=None, **kwds):
         """writeme."""
         h5py.File.__init__(self, name=name, mode=mode, **kwds)
 
-        if selector is None:
-            selector = selectors.permute_items
-        self._selector = selector
-
         if entity is None:
-            self._entity_cls = Entity
+            self._entity_cls = core.Entity
 
         keys = list(h5py.File.get(self, self.__KEYS__, []))
         addrs = list(h5py.File.get(self, self.__ADDR__, []))
         self._key_map = OrderedDict([(k, a) for k, a in zip(keys, addrs)])
         self._agu = keyutils.uniform_hexgen(self.__DEPTH__, self.__WIDTH__)
-        self._item_gen = self._selector(self)
 
     def close(self):
         """write keys and paths to disk"""
@@ -76,8 +71,6 @@ class File(h5py.File):
             for k, v in new_dset.attrs.iteritems():
                 dset.attrs.create(name=k, data=v)
 
-        self._item_gen = self._selector(self)
-
     def keys(self):
         """writeme."""
         return self._key_map.keys()
@@ -89,13 +82,9 @@ class File(h5py.File):
     def __len__(self):
         return len(self.keys())
 
-    def next(self):
-        """Return the next item."""
-        return self._item_gen.next()
 
-
-class Cache(object):
-    """writeme."""
+class LocalCache(object):
+    """Basically, a dictionary with some bonus methods."""
 
     def __init__(self, refresh_prob, selector=None):
         """writeme."""
@@ -141,3 +130,16 @@ class Cache(object):
         key, entity = self._item_gen.next()
         self.remove(key, prob=self._refresh_prob)
         return key, entity
+
+
+class Queue(object):
+    """writeme"""
+    pass
+
+    def clear(self):
+        """writeme"""
+        pass
+
+    def add(self):
+        """writeme"""
+        pass
