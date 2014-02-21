@@ -104,6 +104,11 @@ class Struct(object):
             keys.append(k)
         return keys
 
+    def update(self, **kwargs):
+        """writeme."""
+        for name, value in kwargs.iteritems():
+            self.__dict__[name] = value
+
     def __getitem__(self, key):
         """TODO(ejhumphrey@nyu.edu): writeme."""
         return self.__dict__[key]
