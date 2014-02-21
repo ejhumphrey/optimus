@@ -121,25 +121,37 @@ class Value(Struct):
     """writeme."""
     def __init__(self, value):
         """writeme."""
-        Struct.__init__(self, value=value)
+        self.value = value
 
 
 class Port(Struct):
     """writeme."""
     def __init__(self, shape):
         """writeme."""
-        Struct.__init__(self, shape=shape)
+        self.shape = shape
+        self._variable = None
 
     @property
     def ndim(self):
+        """writeme"""
         return len(self.shape)
+
+    @property
+    def variable(self):
+        """writeme"""
+        return self._variable
+
+    @variable.setter
+    def variable(self, variable):
+        """writeme."""
+        self._variable = variable
 
 
 class Parameter(Struct):
     """writeme."""
     def __init__(self, shape):
         """writeme."""
-        Struct.__init__(self, shape=shape)
+        self.shape = shape
         self._variable = theano.shared(value=np.zeros(self.shape))
 
     @property
@@ -171,7 +183,6 @@ class Scalar(Struct):
     """writeme."""
     def __init__(self):
         """writeme."""
-        Struct.__init__(self)
         self._variable = T.scalar()
 
     @property
