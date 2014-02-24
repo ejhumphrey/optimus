@@ -194,22 +194,3 @@ class Scalar(Struct):
     def set_name(self, name):
         """writeme."""
         self._variable.name = name
-
-
-class PortStruct(Struct):
-    def __init__(self, **kwargs):
-        for name, port in kwargs.iteritems():
-            self.__dict__[name] = Port(**port)
-
-
-class ParamStruct(Struct):
-    def __init__(self, **kwargs):
-        for name, param in kwargs.iteritems():
-            self.__dict__[name] = Parameter(**param)
-
-
-class ScalarStruct(Struct):
-    def __init__(self, **kwargs):
-        for name in kwargs.keys():
-            self.__dict__[name] = Scalar()
-

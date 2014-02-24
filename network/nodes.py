@@ -1,53 +1,29 @@
+"""writeme
 """
-"""
-
-from . import core
 
 import numpy as np
-
-import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 from theano.tensor.signal import downsample
 
+from . import core
 from . import FLOATX
-# from . import TENSOR_TYPES
 from . import functions
-# from .. import urls
 
 
 # --- Node Implementations ------
 class Node(core.Struct):
     """
     Nodes in the graph perform parameter management and micro-math operations.
-
-    Note that a "Node" is merely a base class, and cannot be instantiated.
-    Or, empty dictionaries? Which makes more sense...? Loud failure of a class
-    that shouldn't be used will certainly prevent misuse...
-
-    MUST implement three property getters:
-        self._input_shapes
-        self._output_shapes
-        self._param_shapes
-
-    Param name defines should come from here, not the args class.
-    Move arg classes to separate module, they exist for conveience of creating
-    properly formatted dictionaries.
     """
 
-    def __init__(self, inputs, outputs, params, scalars, act_type):
-        """
-        act_type : str
-        inputs : Struct of Ports
-        outputs : Struct of Ports
-        params : Struct of Parameters
-        scalars : Struct of Scalars
-        """
-        self.act_type = act_type
-        self.inputs = core.PortStruct(**inputs)
-        self.outputs = core.PortStruct(**outputs)
-        self.params = core.ParamStruct(**params)
-        self.scalars = core.ScalarStruct(**scalars)
+    def __init__(self):
+        """writeme."""
+        self.act_type = 'linear'
+        self.inputs = core.Struct()
+        self.outputs = core.Struct()
+        self.params = core.Struct()
+        self.scalars = core.Struct()
 
         self._numpy_rng = np.random.RandomState()
         self._theano_rng = RandomStreams(self._numpy_rng.randint(2 ** 30))
@@ -67,34 +43,6 @@ class Node(core.Struct):
         """writeme"""
         raise NotImplementedError("Subclass me!")
 
-    @classmethod
-    def from_json(cls, args):
-        """writeme"""
-        raise NotImplementedError("Subclass me!")
-
-    # This should be implemented by whatever is up the stack...
-    # -------
-    # def copy(self, new_name):
-    #     """writeme"""
-    #     args = dict(**self)
-    #     args.update(name=new_name)
-    #     node = self.__class__(**args)
-    #     for k in self.params:
-    #         node.params[k].value = p.value
-    #     return node
-
-
-    # def validate_inputs(self, inputs):
-    #     """Determine if the inputs dictionary contains the necessary keys."""
-    #     # TODO(ejhumphrey): Look into this method. It has failed opaquely
-    #     # in the past, and I'm not sure why.
-    #     return not False in [url in inputs for url in self.inputs]
-
-    # def filter_inputs(self, inputs):
-    #     """Extract the relevant input items, iff all are present."""
-    #     assert self.validate_inputs(inputs)
-    #     return dict([(k, inputs.pop(k)) for k in self.inputs])
-
 
 class Affine(Node):
     """
@@ -102,21 +50,15 @@ class Affine(Node):
       (i.e., a fully-connected non-linear projection)
 
     """
-    # def __init__(self, input_shape, output_shape, act_type,
-    #              enable_dropout=False):
-    #     n_in = int(np.prod(input_shape))
-    #     n_out = int(np.prod(output_shape))
-    #     # Note that Inputs/Outputs/Params are named here.
-    #     inputs = core.Struct(x_in=core.Port(input_shape))
-    #     outputs = core.Struct(z_out=core.Port(output_shape))
-    #     params = core.Struct(weights=core.Parameter([n_in, n_out]),
-    #                          bias=core.Parameter([n_out, ]))
-    #     scalars = core.Struct()
-    #     if enable_dropout:
-    #         scalars.update(dropout=core.Scalar())
-
-    #     Node.__init__(self, inputs=inputs, outputs=outputs, params=params,
-    #                   scalars=scalars, act_type=act_type)
+    def __init__(self, inputs, outputs, params, scalars, act_type):
+        Node.__init__(self)
+        self.act_type = act_type
+        self.inputs.x_in = core.Port(**inputs['x_in'])
+        self.outputs.z_out = core.Port(**outputs['z_out'])
+        self.params.weights = core.Parameter(**params['weights'])
+        self.params.bias = core.Parameter(**params['bias'])
+        if 'dropout' in scalars:
+            self.scalars.dropout = core.Scalar()
 
     def transform(self, x_in):
         """
@@ -154,32 +96,57 @@ class Affine(Node):
     @classmethod
     def simple(cls, input_shape, output_shape, act_type,
                enable_dropout=False):
+        """writeme"""
         n_in = int(np.prod(input_shape))
         n_out = int(np.prod(output_shape))
-        # Note that Inputs/Outputs/Params are named here.
-        inputs = core.Struct(x_in=core.Port(input_shape))
-        outputs = core.Struct(z_out=core.Port(output_shape))
-        params = core.Struct(weights=core.Parameter([n_in, n_out]),
-                             bias=core.Parameter([n_out, ]))
-        scalars = core.Struct()
+
+        inputs = dict(x_in=core.Port(input_shape))
+        outputs = dict(z_out=core.Port(output_shape))
+        params = dict(weights=core.Parameter([n_in, n_out]),
+                      bias=core.Parameter([n_out, ]))
+        scalars = dict()
         if enable_dropout:
             scalars.update(dropout=core.Scalar())
 
-        return Affine(inputs=inputs, outputs=outputs, params=params,
-                      scalars=scalars, act_type=act_type)
+        return cls(inputs=inputs, outputs=outputs, params=params,
+                   scalars=scalars, act_type=act_type)
 
 
 class Conv3D(Node):
     """ (>^.^<) """
 
-    def __init__(self,
-                 input_shape,
-                 weight_shape,
-                 pool_shape=(1, 1),
-                 downsample_shape=(1, 1),
-                 act_type='relu',
-                 border_mode='valid',
-                 enable_dropout=False):
+    def __init__(self, inputs, outputs, params, scalars, act_type,
+                 pool_shape, downsample_shape, border_mode):
+        Node.__init__(self)
+        self.act_type = act_type
+        self.inputs.x_in = core.Port(**inputs['x_in'])
+        self.outputs.z_out = core.Port(**outputs['z_out'])
+        self.params.weights = core.Parameter(**params['weights'])
+        self.params.bias = core.Parameter(**params['bias'])
+        if 'dropout' in scalars:
+            self.scalars.dropout = core.Scalar()
+
+        self.pool_shape = pool_shape
+        self.downsample_shape = downsample_shape
+        self.border_mode = border_mode
+
+        fan_in = np.prod(self.params.weights.shape[1:])
+        weight_values = self._numpy_rng.normal(
+            loc=0.0, scale=np.sqrt(3. / fan_in),
+            size=self.params.weights.shape)
+
+        if act_type == 'sigmoid':
+            weight_values *= 4
+
+        self.params.weights.value = weight_values
+
+    @classmethod
+    def simple(cls, input_shape, weight_shape,
+               pool_shape=(1, 1),
+               downsample_shape=(1, 1),
+               act_type='relu',
+               border_mode='valid',
+               enable_dropout=False):
         """
         Parameters
         ----------
@@ -221,30 +188,19 @@ class Conv3D(Node):
             raise NotImplementedError("Haven't implemented 'full' shape yet.")
 
         output_shape = (weight_shape[0], d0_out, d1_out)
-
-        inputs = core.Struct(x_in=core.Port(input_shape))
-        outputs = core.Struct(z_out=core.Port(output_shape))
-        params = core.Struct(weights=core.Parameter(weight_shape),
-                             bias=core.Parameter(weight_shape[:1]))
-        scalars = core.Struct()
+        scalars = dict()
         if enable_dropout:
             scalars.update(dropout=core.Scalar())
 
-        Node.__init__(self, inputs=inputs, outputs=outputs, params=params,
-                      scalars=scalars, act_type=act_type)
-
-        self.pool_shape = pool_shape
-        self.downsample_shape = downsample_shape
-        self.border_mode = border_mode
-
-        fan_in = np.prod(weight_shape[1:])
-        weight_values = self._numpy_rng.normal(
-            loc=0.0, scale=np.sqrt(3. / fan_in), size=weight_shape)
-
-        if act_type == 'sigmoid':
-            weight_values *= 4
-
-        self.params.weights.value = weight_values
+        return cls(inputs=dict(x_in=core.Port(input_shape)),
+                   outputs=dict(z_out=core.Port(output_shape)),
+                   params=dict(weights=core.Parameter(weight_shape),
+                               bias=core.Parameter(weight_shape[:1])),
+                   scalars=scalars,
+                   act_type=act_type,
+                   downsample_shape=downsample_shape,
+                   pool_shape=pool_shape,
+                   border_mode=border_mode)
 
     def transform(self, x_in):
         """writeme."""
@@ -269,6 +225,33 @@ class Conv3D(Node):
 
         z_out = downsample.max_pool_2d(
             z_out, self.pool_shape, ignore_border=False)
+        return z_out
+
+
+class Softmax(Affine):
+    """writeme. """
+
+    @classmethod
+    def simple(cls, input_shape, n_out, act_type):
+        """
+        """
+        n_in = int(np.prod(input_shape))
+        inputs = dict(x_in=core.Port(input_shape))
+        outputs = dict(z_out=core.Port([n_out]))
+        params = dict(weights=core.Parameter([n_in, n_out]),
+                      bias=core.Parameter([n_out, ]))
+        return cls(inputs=inputs, outputs=outputs, params=params,
+                   scalars=dict(), act_type=act_type)
+
+    def transform(self, x_in):
+        """
+        will fix input tensors to be matrices as the following:
+        (N x d0 x d1 x ... dn) -> (N x prod(d_(0:n)))
+        """
+        weights = self.params.weights.variable
+        bias = self.params.bias.variable.dimshuffle('x', 0)
+        x_in = T.flatten(x_in, outdim=2)
+        z_out = T.nnet.softmax(self.activation(T.dot(x_in, weights) + bias))
         return z_out
 
 
@@ -316,28 +299,6 @@ class Conv2D(Node):
         z_out *= selector.dimshuffle('x', 0, 'x', 'x') * (self.dropout + 0.5)
         return downsample.max_pool_2d(
             z_out, self.get("pool_shape"), ignore_border=False)
-
-
-class Softmax(Affine):
-    """writeme. """
-
-    def __init__(self, input_shape, n_out, act_type):
-        """
-        """
-        Affine.__init__(
-            self, input_shape, [n_out, ], act_type, enable_dropout=False)
-
-    def transform(self, x_in):
-        """
-        will fix input tensors to be matrices as the following:
-        (N x d0 x d1 x ... dn) -> (N x prod(d_(0:n)))
-        """
-
-        weights = self.params.weights.variable
-        bias = self.params.bias.variable.dimshuffle('x', 0)
-        x_in = T.flatten(x_in, outdim=2)
-        z_out = T.nnet.softmax(self.activation(T.dot(x_in, weights) + bias))
-        return z_out
 
 
 class LpDistance(Node):
