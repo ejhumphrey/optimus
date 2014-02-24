@@ -85,10 +85,7 @@ class Struct(object):
     def _jsonSupport(*args):
         """TODO(ejhumphrey@nyu.edu): writeme."""
         def default(self, xObject):
-            result = dict()
-            for k in xObject.keys():
-                result[k] = xObject.__dict__[k]
-            return result
+            return xObject.items()
 
         json.JSONEncoder.default = default
         json._default_decoder = json.JSONDecoder()
@@ -115,6 +112,10 @@ class Struct(object):
 
     def __len__(self):
         return len(self.keys())
+
+    def items(self):
+        """writeme."""
+        return dict([(k, self[k]) for k in self.keys()])
 
 
 class Value(Struct):
@@ -193,3 +194,22 @@ class Scalar(Struct):
     def set_name(self, name):
         """writeme."""
         self._variable.name = name
+
+
+class PortStruct(Struct):
+    def __init__(self, **kwargs):
+        for name, port in kwargs.iteritems():
+            self.__dict__[name] = Port(**port)
+
+
+class ParamStruct(Struct):
+    def __init__(self, **kwargs):
+        for name, param in kwargs.iteritems():
+            self.__dict__[name] = Parameter(**param)
+
+
+class ScalarStruct(Struct):
+    def __init__(self, **kwargs):
+        for name in kwargs.keys():
+            self.__dict__[name] = Scalar()
+
