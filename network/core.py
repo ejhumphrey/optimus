@@ -1,164 +1,87 @@
 """writeme."""
 
-import json
 import numpy as np
-import theano.tensor as T
 import theano
 
-
-# def _jsonSupport():
-#     """writeme."""
-#     def default(self, xObject):
-#         """writeme."""
-#         return dict([(k, xObject[k]) for k in xObject])
-
-#     json.JSONEncoder.default = default
-#     json._default_decoder = json.JSONDecoder()
-
-# _jsonSupport()
+from . import primitives
+from . import TENSOR_TYPES
+from . import FLOATX
 
 
-# class Struct(object):
-#     """Dict-like object for JSON Serialization.
+class Symbolic(primitives.JObject):
 
-#     This object behaves like a dictionary to allow init-level attribute names,
-#     seamless JSON-serialization, and double-star style unpacking (**obj).
+    def __init__(self):
+        raise NotImplementedError("Base class! Subclass only.")
 
-#     To hide an attribute from serialization, make the variable 'private' with
-#     a leading underscore and expose it via the '@property' decorator.
-#     """
-#     def __init__(self, **kwargs):
-#         object.__init__(self)
-#         for name, value in kwargs.iteritems():
-#             self.__dict__[name] = value
-
-#     def __repr__(self):
-#         """Render the object as an unambiguous string."""
-#         return '<%s>' % self.__class__.__name__
-
-#     def _jsonSupport():
-#         """writeme."""
-#         def default(self, xObject):
-#             return dict([(k, xObject[k]) for k in xObject])
-
-#         json.JSONEncoder.default = default
-#         json._default_decoder = json.JSONDecoder()
-
-#     _jsonSupport()
-
-#     def keys(self):
-#         """writeme."""
-#         keys = list()
-#         for k in self.__dict__.keys():
-#             if k.startswith("_"):
-#                 continue
-#             keys.append(k)
-#         return keys
-
-#     # def update(self, **kwargs):
-#     #     """writeme."""
-#     #     for name, value in kwargs.iteritems():
-#     #         self.__dict__[name] = value
-
-#     def __getitem__(self, key):
-#         """writeme."""
-#         return self.__dict__[key]
-
-#     def __len__(self):
-#         return len(self.keys())
-
-class Struct(object):
-    """Dict-like object for JSON Serialization.
-
-    This object behaves like a dictionary to allow init-level attribute names,
-    seamless JSON-serialization, and double-star style unpacking (**obj).
-    """
-    def __init__(self, **kwargs):
-        object.__init__(self)
-        for name, value in kwargs.iteritems():
-            self.__dict__[name] = value
-
-    def __repr__(self):
-        """Render the object as an unambiguous string."""
-        return '<%s>' % self.__class__.__name__
-
-    def _jsonSupport(*args):
-        """TODO(ejhumphrey@nyu.edu): writeme."""
-        def default(self, xObject):
-            return xObject.items()
-
-        json.JSONEncoder.default = default
-        json._default_decoder = json.JSONDecoder()
-
-    _jsonSupport()
-
-    def keys(self):
-        """writeme."""
-        keys = list()
-        for k in self.__dict__.keys():
-            if k.startswith("_"):
-                continue
-            keys.append(k)
-        return keys
-
-    def update(self, **kwargs):
-        """writeme."""
-        for name, value in kwargs.iteritems():
-            self.__dict__[name] = value
-
-    def __getitem__(self, key):
-        """TODO(ejhumphrey@nyu.edu): writeme."""
-        return self.__dict__[key]
-
-    def __len__(self):
-        return len(self.keys())
-
-    def items(self):
-        """writeme."""
-        return dict([(k, self[k]) for k in self.keys()])
-
-
-class Value(Struct):
-    """writeme."""
-    def __init__(self, value):
-        """writeme."""
-        self.value = value
-
-
-class Port(Struct):
-    """writeme."""
-    def __init__(self, shape):
-        """writeme."""
-        self.shape = shape
-        self._variable = None
+    def __str__(self):
+        return "<%s: %s>" % (self.otype, self.name)
 
     @property
     def ndim(self):
-        """writeme"""
+        """writeme."""
         return len(self.shape)
 
     @property
-    def variable(self):
-        """writeme"""
-        return self._variable
+    def name(self):
+        return self.variable.name
 
-    @variable.setter
-    def variable(self, variable):
-        """writeme."""
-        self._variable = variable
+    @name.setter
+    def name(self, name):
+        self.variable.name = name
 
 
-class Parameter(Struct):
-    """writeme."""
+class Input(Symbolic):
+
+    """writeme.
+
+    shape = ...
+        None -> scalar
+        [] -> vector
+        [1, ] -> matrix
+        [1, 2, ] -> tensor3
+        [1, 2, 3, ] -> tensor4
+
+    """
     def __init__(self, shape):
-        """writeme."""
         self.shape = shape
-        self._variable = theano.shared(value=np.zeros(self.shape))
+        self.variable = TENSOR_TYPES[self.ndim](dtype=FLOATX)
+
+    @property
+    def __json__(self):
+        return dict(otype=self.otype, shape=self.shape)
 
     @property
     def variable(self):
         """writeme."""
-        return self._variable
+        return self.variable
+
+
+class Output(Symbolic):
+    """writeme."""
+    def __init__(self):
+        self.shape = []
+        self.variable = None
+
+    @property
+    def __json__(self):
+        return dict(otype=self.otype)
+
+
+class Parameter(Symbolic):
+    """writeme.
+
+    Note: Include datatype?
+    """
+    def __init__(self, shape, value=None):
+        """writeme."""
+        self.shape = shape
+        if value is None:
+            value = np.zeros(self.shape)
+        self.variable = theano.shared(value=value)
+
+    @property
+    def __json__(self):
+        return {"shape": self.shape}
 
     @property
     def value(self):
@@ -169,28 +92,3 @@ class Parameter(Struct):
     def value(self, value):
         """writeme."""
         self.variable.set_value(value)
-
-    @property
-    def ndim(self):
-        """writeme."""
-        return len(self.shape)
-
-    def set_name(self, name):
-        """writeme."""
-        self._variable.name = name
-
-
-class Scalar(Struct):
-    """writeme."""
-    def __init__(self):
-        """writeme."""
-        self._variable = T.scalar()
-
-    @property
-    def variable(self):
-        """writeme."""
-        return self._variable
-
-    def set_name(self, name):
-        """writeme."""
-        self._variable.name = name
