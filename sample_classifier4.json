@@ -1,0 +1,126 @@
+{
+    "nodes": {
+        "conv": {
+            "cls": "Conv3D",
+            "input_shape":[1, 28, 28],
+            "weight_shape": [10, 1, 9, 9],
+            "pool_shape": [2, 2],
+            "downsample_shape": [1, 1],
+            "border_mode": "valid",
+            "act_type": "relu"
+        },
+        "affine": {
+            "cls": "Affine",
+            "input_shape":[10, 10, 10],
+            "output_shape": [128],
+            "act_type": "relu"
+        },
+        "classifier": {
+            "cls": "Softmax",
+            "input_shape": [128],
+            "n_out": 10,
+            "act_type": "linear"
+        },
+        "nll": {
+            "cls": "NegativeLogLikelihood"
+        },
+        "conv_reg": {
+            "cls": "L2Penalty"
+        },
+        "affine_sparsity": {
+            "cls": "L1Penalty"
+        }
+    },
+    "graphs": {
+        "transform": {
+            "inputs": {
+                "x_in":{
+                    "shape": [1, 28, 28]
+                }
+            },
+            "connections": {
+                "x_in": ["conv.input"],
+                "conv.output": ["affine.input"],
+                "affine.output": ["classifier.input"]
+            },
+            "losses": [],
+            "outputs": ["classifier.output"],
+            "constraints": {},
+            "updates": {}
+        },
+        "loss": {
+            "inputs": {
+                "x_in": {
+                    "shape": [1, 28, 28]
+                },
+                "class_idx": {
+                    "shape": []
+                },
+                "weight_decay": {
+                    "shape": null
+                },
+                "sparsity_param": {
+                    "shape": null
+                }
+            },
+            "connections": {
+                "x_in": ["conv.input"],
+                "conv.output": ["affine.input"],
+                "affine.output": ["classifier.input", "affine_sparsity.variable"],
+                "classifier.output": ["nll.posterior"],
+                "class_idx": ["nll.target_idx"],
+                "sparsity_param": ["affine_sparsity.parameter"],
+                "conv.weights": ["conv_reg.variable"],
+                "weight_decay": ["conv_reg.parameter"]
+            },
+            "outputs": ["losses", "classifier.output"],
+            "constraints": {},
+            "updates": {},
+            "losses": ["nll.cost", "conv_reg.cost", "affine_sparsity.cost"]
+        },
+        "train": {
+            "inputs": {
+                "x_in": {
+                    "shape": [1, 28, 28]
+                },
+                "class_idx": {
+                    "shape": []
+                },
+                "weight_decay": {
+                    "shape": null
+                },
+                "sparsity_param": {
+                    "shape": null
+                },
+                "dropout": {
+                    "shape": null
+                },
+                "learning_rate": {
+                    "shape": null
+                }
+            },
+            "connections": {
+                "x_in": ["conv.input"],
+                "conv.output": ["affine.input"],
+                "affine.output": ["classifier.input", "affine_sparsity.variable"],
+                "classifier.output": ["nll.posterior"],
+                "class_idx": ["nll.target_idx"],
+                "sparsity_param": ["affine_sparsity.parameter"],
+                "conv.weights": ["conv_reg.variable"],
+                "weight_decay": ["conv_reg.parameter"],
+                "dropout": ["conv.dropout", "affine.dropout"]
+            },
+            "outputs": ["losses"],
+            "losses": ["nll.cost", "conv_reg.cost", "affine_sparsity.cost"],
+            "updates": {
+                "conv.weights": "learning_rate",
+                "conv.bias": "learning_rate",
+                "affine.weights": "learning_rate",
+                "affine.bias": "learning_rate",
+                "classifier.weights": "learning_rate",
+                "classifier.bias": "learning_rate"
+            },
+            "constraints": {}
+        }
+    }
+}
