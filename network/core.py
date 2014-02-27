@@ -9,7 +9,7 @@ from . import FLOATX
 
 
 class Symbolic(primitives.JObject):
-
+    """Contains common methods/properties/attributes"""
     def __init__(self):
         raise NotImplementedError("Base class! Subclass only.")
 
@@ -50,11 +50,6 @@ class Input(Symbolic):
     def __json__(self):
         return dict(otype=self.otype, shape=self.shape)
 
-    @property
-    def variable(self):
-        """writeme."""
-        return self.variable
-
 
 class Output(Symbolic):
     """writeme."""
@@ -64,6 +59,7 @@ class Output(Symbolic):
 
     @property
     def __json__(self):
+        """TODO(ejhumphrey@nyu.edu): Serialize shape?"""
         return dict(otype=self.otype)
 
 
@@ -81,7 +77,7 @@ class Parameter(Symbolic):
 
     @property
     def __json__(self):
-        return {"shape": self.shape}
+        return dict(shape=self.shape, otype=self.otype)
 
     @property
     def value(self):

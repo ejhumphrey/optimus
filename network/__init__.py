@@ -8,3 +8,4 @@ TENSOR_TYPES = {None: T.scalar,
                 1: T.matrix,
                 2: T.tensor3,
                 3: T.tensor4}
+

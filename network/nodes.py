@@ -11,14 +11,21 @@ from . import FLOATX
 from . import functions
 
 
+def NodeFactory(args):
+    """writeme."""
+    assert "cls" in args, "Must contain a key for 'cls'"
+    return dict(**args)
+    # return eval(args.pop('cls'))(**args)
+
+
 # --- Node Implementations ------
 class Node(core.Struct):
     """
     Nodes in the graph perform parameter management and micro-math operations.
     """
-
-    def __init__(self):
+    def __init__(self, name):
         """writeme."""
+        self.name = name
         self.act_type = 'linear'
         self.inputs = core.Struct()
         self.outputs = core.Struct()
@@ -50,8 +57,8 @@ class Affine(Node):
       (i.e., a fully-connected non-linear projection)
 
     """
-    def __init__(self, inputs, outputs, params, scalars, act_type):
-        Node.__init__(self)
+    def __init__(self, name, inputs, outputs, params, scalars, act_type):
+        Node.__init__(self, name)
         self.act_type = act_type
         self.inputs.x_in = core.Port(**inputs['x_in'])
         self.outputs.z_out = core.Port(**outputs['z_out'])
@@ -94,7 +101,7 @@ class Affine(Node):
         return z_out
 
     @classmethod
-    def simple(cls, input_shape, output_shape, act_type,
+    def simple(cls, name, input_shape, output_shape, act_type,
                enable_dropout=False):
         """writeme"""
         n_in = int(np.prod(input_shape))
@@ -108,16 +115,16 @@ class Affine(Node):
         if enable_dropout:
             scalars.update(dropout=core.Scalar())
 
-        return cls(inputs=inputs, outputs=outputs, params=params,
+        return cls(name=name, inputs=inputs, outputs=outputs, params=params,
                    scalars=scalars, act_type=act_type)
 
 
 class Conv3D(Node):
     """ (>^.^<) """
 
-    def __init__(self, inputs, outputs, params, scalars, act_type,
+    def __init__(self, name, inputs, outputs, params, scalars, act_type,
                  pool_shape, downsample_shape, border_mode):
-        Node.__init__(self)
+        Node.__init__(self, name)
         self.act_type = act_type
         self.inputs.x_in = core.Port(**inputs['x_in'])
         self.outputs.z_out = core.Port(**outputs['z_out'])
@@ -141,15 +148,18 @@ class Conv3D(Node):
         self.params.weights.value = weight_values
 
     @classmethod
-    def simple(cls, input_shape, weight_shape,
+    def simple(cls, name, input_shape, weight_shape,
                pool_shape=(1, 1),
                downsample_shape=(1, 1),
                act_type='relu',
                border_mode='valid',
                enable_dropout=False):
-        """
+        """Convenience Constructor
+
         Parameters
         ----------
+        name: str
+            Name for this node.
         input_shape : tuple
             Shape of the input data, as (in_maps, in_dim0, in_dim1).
         weight_shape : tuple
@@ -192,7 +202,8 @@ class Conv3D(Node):
         if enable_dropout:
             scalars.update(dropout=core.Scalar())
 
-        return cls(inputs=dict(x_in=core.Port(input_shape)),
+        return cls(name=name,
+                   inputs=dict(x_in=core.Port(input_shape)),
                    outputs=dict(z_out=core.Port(output_shape)),
                    params=dict(weights=core.Parameter(weight_shape),
                                bias=core.Parameter(weight_shape[:1])),
@@ -232,7 +243,7 @@ class Softmax(Affine):
     """writeme. """
 
     @classmethod
-    def simple(cls, input_shape, n_out, act_type):
+    def simple(cls, name, input_shape, n_out, act_type):
         """
         """
         n_in = int(np.prod(input_shape))
@@ -240,7 +251,7 @@ class Softmax(Affine):
         outputs = dict(z_out=core.Port([n_out]))
         params = dict(weights=core.Parameter([n_in, n_out]),
                       bias=core.Parameter([n_out, ]))
-        return cls(inputs=inputs, outputs=outputs, params=params,
+        return cls(name=name, inputs=inputs, outputs=outputs, params=params,
                    scalars=dict(), act_type=act_type)
 
     def transform(self, x_in):
@@ -366,3 +377,9 @@ class LpDistance(Node):
         z_out = T.pow(T.pow(T.abs_(xA - xB), p).sum(axis=1), 1.0 / p)
         z_out.name = self.outputs[0]
         return {z_out.name: z_out}
+
+
+class LpPenalty(Node):
+    pass
+
+
