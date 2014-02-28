@@ -50,47 +50,47 @@ class JObject(object):
         return self.__class__.__name__
 
 
-class Struct(JObject):
-    """Struct object
+# class Struct(JObject):
+#     """Struct object
 
-    This object behaves like a JavaScript object, in that attributes can be
-    accessed either by key (like a dict) or self.attr (like a class).
-    """
-    def __init__(self, **kwargs):
-        self.update(**kwargs)
+#     This object behaves like a JavaScript object, in that attributes can be
+#     accessed either by key (like a dict) or self.attr (like a class).
+#     """
+#     def __init__(self, **kwargs):
+#         self.update(**kwargs)
 
-    @property
-    def __json__(self):
-        return self.items()
+#     @property
+#     def __json__(self):
+#         return self.items()
 
-    def __repr__(self):
-        """Render the object as an unambiguous string."""
-        return '<%s>' % self.type
+#     def __repr__(self):
+#         """Render the object as an unambiguous string."""
+#         return '<%s>' % self.type
 
-    def keys(self):
-        """writeme."""
-        keys = list()
-        for k in self.__dict__.keys():
-            if k.startswith("_"):
-                continue
-            keys.append(k)
-        return keys
+#     def keys(self):
+#         """writeme."""
+#         keys = list()
+#         for k in self.__dict__.keys():
+#             if k.startswith("_"):
+#                 continue
+#             keys.append(k)
+#         return keys
 
-    def update(self, **kwargs):
-        """writeme."""
-        for name, value in kwargs.iteritems():
-            self.__dict__[name] = value
+#     def update(self, **kwargs):
+#         """writeme."""
+#         for name, value in kwargs.iteritems():
+#             self.__dict__[name] = value
 
-    def __getitem__(self, key):
-        """writeme."""
-        return self.__dict__[key]
+#     def __getitem__(self, key):
+#         """writeme."""
+#         return self.__dict__[key]
 
-    def __len__(self):
-        return len(self.keys())
+#     def __len__(self):
+#         return len(self.keys())
 
-    def items(self):
-        """writeme."""
-        return dict([(k, self[k]) for k in self.keys()])
+#     def items(self):
+#         """writeme."""
+#         return dict([(k, self[k]) for k in self.keys()])
 
 
 class Port(object):
@@ -105,9 +105,22 @@ class Port(object):
         self.name = name
 
     # I don't know that a port ever needs to be serialized....
-    # @property
-    # def __json__(self):
-    #     return dict(shape=self.shape)
+    @property
+    def __json__(self):
+        return dict(name=self.name, type=self.type)
+
+    @classmethod
+    def __json_init__(cls, **kwargs):
+        return cls(**kwargs)
+
+    def __repr__(self):
+        """Render the object as an unambiguous string."""
+        return '<%s: %s>' % (self.type, self.name)
+
+    @property
+    def type(self):
+        """writeme."""
+        return self.__class__.__name__
 
     def reset(self):
         """writeme"""
@@ -156,7 +169,11 @@ class Input(Port):
 
     @property
     def __json__(self):
-        return dict(shape=self.shape, name=self.name, dtype=self.dtype)
+        return dict(
+            shape=self.shape,
+            name=self.name,
+            dtype=self.dtype,
+            type=self.type)
 
     @property
     def dtype(self):
@@ -194,9 +211,9 @@ class Parameter(object):
         self.variable = theano.shared(value=value)
         self.name = name
 
-    # def __repr__(self):
-    #     """Render the object as an unambiguous string."""
-    #     return '<%s: %s>' % (self.type, self.name)
+    def __repr__(self):
+        """Render the object as an unambiguous string."""
+        return '<%s: %s>' % (self.type, self.name)
 
     @property
     def value(self):

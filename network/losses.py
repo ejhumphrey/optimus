@@ -52,6 +52,10 @@ class Loss(core.JObject):
         self.__args__.update(type=self.type, name=self.name)
         return self.__args__
 
+    def __repr__(self):
+        """Render the object as an unambiguous string."""
+        return '<%s: %s>' % (self.type, self.name)
+
     def __own__(self, name):
         return "%s.%s" % (self.name, name)
 

@@ -54,11 +54,11 @@ classifier = optimus.Likelihood(
 nll = optimus.NegativeLogLikelihood(
     name="negloglikelihood")
 
-conv_decay = optimus.L2Norm(
-    name='weight_decay')
+# conv_decay = optimus.L2Norm(
+#     name='weight_decay')
 
-affine_sparsity = optimus.L1Norm(
-    name="feature_sparsity")
+# affine_sparsity = optimus.L1Norm(
+#     name="feature_sparsity")
 
 # Outputs
 # - - - - - - -
@@ -72,7 +72,8 @@ affine_out = optimus.Output(
 modules = optimus.Canvas(
     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],              # Differentiable
-    losses=[nll, conv_decay, affine_sparsity],  # Non-differentiable
+    losses=[nll],
+    # losses=[nll, conv_decay, affine_sparsity],  # Non-differentiable
     outputs=[posterior, affine_out])
 
 # --------------------
