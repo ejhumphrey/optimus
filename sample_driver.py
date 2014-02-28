@@ -13,7 +13,8 @@ input_data = optimus.Input(
 
 class_labels = optimus.Input(
     name='class_labels',
-    shape=[])
+    shape=[],
+    dtype='int32')
 
 decay = optimus.Input(
     name='decay_param',
@@ -42,12 +43,14 @@ affine = optimus.Affine(
     output_shape=(512,),
     act_type='relu')
 
-softmax = optimus.Softmax(
+classifier = optimus.Likelihood(
     name='classifier',
     input_shape=affine.output.shape,
     n_out=10,
     act_type='linear')
 
+# Losses
+# - - - - -
 nll = optimus.NegativeLogLikelihood(
     name="negloglikelihood")
 
@@ -67,8 +70,9 @@ affine_out = optimus.Output(
 
 # Assemble everything
 modules = optimus.Canvas(
-    inputs=[input_data, class_labels, decay, sparsity],
-    nodes=[conv, affine, softmax, nll, conv_decay, affine_sparsity],
+    inputs=[input_data, class_labels, decay, sparsity, learning_rate],
+    nodes=[conv, affine, classifier],              # Differentiable
+    losses=[nll, conv_decay, affine_sparsity],  # Non-differentiable
     outputs=[posterior, affine_out])
 
 # --------------------
@@ -80,12 +84,12 @@ modules = optimus.Canvas(
 transform_edges = [
     (input_data, conv.input),
     (conv.output, affine.input),
-    (affine.output, softmax.input),
+    (affine.output, classifier.input),
     (affine.output, affine_out),
-    (softmax.output, posterior)]
+    (classifier.output, posterior)]
 
 loss_edges = transform_edges + [
-    (softmax.output, nll.likelihood),
+    (classifier.output, nll.likelihood),
     (class_labels, nll.target_idx),
     (conv.weights, conv_decay.input),
     (decay, conv_decay.parameter),

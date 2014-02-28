@@ -3,33 +3,49 @@
 import numpy as np
 import theano
 
-import json
 from . import FLOATX
 from . import TENSOR_TYPES
 
 
-def _jsonSupport():
-    """TODO(ejhumphrey@nyu.edu): writeme."""
-    def default(self, jsonObject):
-        return jsonObject.__json__
-
-    json.JSONEncoder.default = default
-    json._default_decoder = json.JSONDecoder()
-
-_jsonSupport()
-
-
 class JObject(object):
+    """Base JSON object for complex Optimus types.
+
+    This class offers several key pieces of functionality:
+    - JSON Encoding through the __json__ property
+    - JSON Decoding through the __json_init__ classmethod
+    - both obj[attr] and obj.attr style attribute access
+    - **unpacking magic (May not need this anymore?)
+    """
+    @classmethod
+    def __json_init__(cls, **kwargs):
+        return cls(**kwargs)
+
     @property
     def __json__(self):
-        raise NotImplementedError("Write this property for JSON support.")
+        raise NotImplementedError("Missing a JSON serialization property.")
 
     def __repr__(self):
         """Render the object as an unambiguous string."""
-        return '<%s>' % self.otype
+        return '<%s>' % self.type
+
+    def keys(self):
+        """writeme."""
+        names = list()
+        for k in self.__dict__.keys():
+            if k.startswith("_"):
+                continue
+            names.append(k)
+        return names
+
+    def __getitem__(self, key):
+        """writeme"""
+        return self.__dict__[key]
+
+    def __len__(self):
+        return len(self.keys())
 
     @property
-    def otype(self):
+    def type(self):
         """writeme."""
         return self.__class__.__name__
 
@@ -49,7 +65,7 @@ class Struct(JObject):
 
     def __repr__(self):
         """Render the object as an unambiguous string."""
-        return '<%s>' % self.otype
+        return '<%s>' % self.type
 
     def keys(self):
         """writeme."""
@@ -77,16 +93,21 @@ class Struct(JObject):
         return dict([(k, self[k]) for k in self.keys()])
 
 
-class Port(JObject):
-    """writeme"""
-    def __init__(self, shape=None, name="anonymous"):
+class Port(object):
+    """writeme
+
+    Doesn't do any shape validation so... guess that's more for convenience
+    than anything else.
+    """
+    def __init__(self, name, shape=None):
         self._variable = [None]
         self.shape = shape
         self.name = name
 
-    @property
-    def __json__(self):
-        return dict(shape=self.shape)
+    # I don't know that a port ever needs to be serialized....
+    # @property
+    # def __json__(self):
+    #     return dict(shape=self.shape)
 
     def reset(self):
         """writeme"""
@@ -95,6 +116,7 @@ class Port(JObject):
     def connect(self, source):
         """writeme"""
         self._variable = source._variable
+        # Save shape too?
 
     @property
     def variable(self):
@@ -109,6 +131,8 @@ class Port(JObject):
     @property
     def ndim(self):
         """writeme."""
+        if self.shape is None:
+            return None
         return len(self.shape)
 
 
@@ -123,13 +147,20 @@ class Input(Port):
         [1, 2, 3, ] -> tensor4
 
     """
-    def __init__(self, shape, name):
+    def __init__(self, shape, name, dtype=None):
         self.shape = shape
-        self._variable = [TENSOR_TYPES[self.ndim](name=name, dtype=FLOATX)]
+        # List representation to keep consistency with Ports
+        if dtype is None:
+            dtype = FLOATX
+        self._variable = [TENSOR_TYPES[self.ndim](name=name, dtype=dtype)]
 
     @property
     def __json__(self):
-        return dict(name=self.name, shape=self.shape)
+        return dict(shape=self.shape, name=self.name, dtype=self.dtype)
+
+    @property
+    def dtype(self):
+        return self._variable[0].dtype
 
     @property
     def name(self):
@@ -150,7 +181,7 @@ class Output(Port):
         self.variable = None
 
 
-class Parameter(JObject):
+class Parameter(object):
     """writeme.
 
     Note: Include datatype?
@@ -163,13 +194,9 @@ class Parameter(JObject):
         self.variable = theano.shared(value=value)
         self.name = name
 
-    @property
-    def __json__(self):
-        return dict(shape=self.shape, otype=self.otype)
-
-    def __repr__(self):
-        """Render the object as an unambiguous string."""
-        return '<%s: %s>' % (self.otype, self.name)
+    # def __repr__(self):
+    #     """Render the object as an unambiguous string."""
+    #     return '<%s: %s>' % (self.type, self.name)
 
     @property
     def value(self):

@@ -11,39 +11,18 @@ from . import FLOATX
 from . import functions
 
 
-def NodeFactory(args):
-    """writeme."""
-    assert "otype" in args, "Must contain a key for 'cls'"
-    return eval(args.pop('otype'))(**args)
-
-
-# --- Node Implementations ------
+# --- Node Implementations ---
 class Node(core.JObject):
     """
     Nodes in the graph perform parameter management and micro-math operations.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, name, **kwargs):
         """writeme."""
+        self.name = name
         self.__args__ = dict(**kwargs)
         self.act_type = 'linear'
         self._numpy_rng = np.random.RandomState()
         self._theano_rng = RandomStreams(self._numpy_rng.randint(2 ** 30))
-
-    def attrs(self):
-        """writeme."""
-        names = list()
-        for k in self.__dict__.keys():
-            if k.startswith("_"):
-                continue
-            names.append(k)
-        return names
-
-    def __getitem__(self, key):
-        """writeme"""
-        return self.__dict__[key]
-
-    def __len__(self):
-        return len(self.attrs())
 
     # --- Public Properties ---
     @property
@@ -51,13 +30,29 @@ class Node(core.JObject):
         """writeme"""
         return functions.Activations.get(self.act_type)
 
+    def is_ready(self):
+        """Return true when all input ports are loaded."""
+        return all([p.variable for p in self.inputs.values()])
+
+    def reset(self):
+        """writeme"""
+        for p in self.inputs.values():
+            p.reset()
+        for p in self.outputs.values():
+            p.reset()
+
+    @property
+    def __json__(self):
+        self.__args__.update(type=self.type, name=self.name)
+        return self.__args__
+
+    def __own__(self, name):
+        return "%s.%s" % (self.name, name)
+
+    # --- Subclassed methods ---
     def transform(self):
         """writeme"""
         raise NotImplementedError("Subclass me!")
-
-    def is_ready(self):
-        """Return true when all input ports are loaded."""
-        return all([p.variable for p in self.inputs])
 
     @property
     def inputs(self):
@@ -74,18 +69,6 @@ class Node(core.JObject):
         """Return a list of all active Outputs in the node."""
         raise NotImplementedError("Subclass me")
 
-    def reset(self):
-        """writeme"""
-        for p in self.inputs:
-            p.reset()
-        for p in self.outputs:
-            p.reset()
-
-    @property
-    def __json__(self):
-        self.__args__.update(otype=self.otype)
-        return self.__args__
-
 
 class Affine(Node):
     """
@@ -93,9 +76,10 @@ class Affine(Node):
       (i.e., a fully-connected non-linear projection)
 
     """
-    def __init__(self, input_shape, output_shape, act_type):
+    def __init__(self, name, input_shape, output_shape, act_type):
         Node.__init__(
             self,
+            name=name,
             input_shape=input_shape,
             output_shape=output_shape,
             act_type=act_type)
@@ -105,26 +89,40 @@ class Affine(Node):
         n_out = int(np.prod(output_shape))
         weight_shape = [n_in, n_out]
 
-        self.x_in = core.Port(input_shape)
-        self.z_out = core.Port(output_shape)
-        self.dropout = core.Port(None, name='dropout')
-        self.weights = core.Parameter(weight_shape, name='weights')
-        self.bias = core.Parameter([n_out], name='bias')
+        self.input = core.Port(
+            shape=input_shape, name=self.__own__('input'))
+        self.output = core.Port(
+            shape=output_shape, name=self.__own__('output'))
+        self.dropout = core.Port(
+            shape=None, name=self.__own__('dropout'))
+        self.weights = core.Parameter(
+            shape=weight_shape, name=self.__own__('weights'))
+        self.bias = core.Parameter(
+            shape=[n_out], name=self.__own__('bias'))
+
+    # @classmethod
+    # def __json_init__(cls, input_shape, output_shape, act_type):
+    #     return cls(input_shape, output_shape, act_type)
 
     @property
     def inputs(self):
         """Return a list of all active Inputs in the node."""
-        return [self.x_in]
+        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
+        # i.e. dropout yes/no?
+        return {self.input.name: self.input}
 
     @property
     def params(self):
         """Return a list of all Parameters in the node."""
-        return [self.weights, self.bias]
+        # Filter based on what is set / active?
+        return {self.weights.name: self.weights,
+                self.bias.name: self.bias}
 
     @property
     def outputs(self):
         """Return a list of all active Outputs in the node."""
-        return [self.z_out]
+        # Filter based on what is set / active?
+        return {self.output.name: self.output}
 
     def transform(self):
         """In-place transformation"""
@@ -132,7 +130,7 @@ class Affine(Node):
         weights = self.weights.variable
         bias = self.bias.variable.dimshuffle('x', 0)
 
-        x_in = T.flatten(self.x_in.variable, outdim=2)
+        x_in = T.flatten(self.inputs.variable, outdim=2)
         z_out = self.activation(T.dot(x_in, weights) + bias)
         output_shape = list(self.z_out.shape)
         z_out = T.reshape(z_out, [z_out.shape[0]] + output_shape)
@@ -148,7 +146,7 @@ class Affine(Node):
 class Conv3D(Node):
     """ (>^.^<) """
 
-    def __init__(self, input_shape, weight_shape,
+    def __init__(self, name, input_shape, weight_shape,
                  pool_shape=(1, 1),
                  downsample_shape=(1, 1),
                  act_type='relu',
@@ -173,6 +171,7 @@ class Conv3D(Node):
         """
         Node.__init__(
             self,
+            name=name,
             input_shape=input_shape,
             weight_shape=weight_shape,
             pool_shape=pool_shape,
@@ -205,11 +204,21 @@ class Conv3D(Node):
 
         output_shape = (weight_shape[0], d0_out, d1_out)
 
-        self.x_in = core.Port(input_shape, name='input')
-        self.z_out = core.Port(output_shape, name='output')
-        self.weights = core.Parameter(weight_shape, name='weights')
-        self.bias = core.Parameter(weight_shape[:1], name='bias')
-        self.dropout = core.Port(None, name='dropout')
+        self.input = core.Port(
+            shape=input_shape,
+            name=self.__own__('input'))
+        self.output = core.Port(
+            shape=output_shape,
+            name=self.__own__('output'))
+        self.dropout = core.Port(
+            shape=None,
+            name=self.__own__('dropout'))
+        self.weights = core.Parameter(
+            shape=weight_shape,
+            name=self.__own__('weights'))
+        self.bias = core.Parameter(
+            shape=weight_shape[:1],
+            name=self.__own__('bias'))
 
         self.pool_shape = pool_shape
         self.downsample_shape = downsample_shape
@@ -229,70 +238,85 @@ class Conv3D(Node):
     @property
     def inputs(self):
         """Return a list of all active Inputs in the node."""
-        return [self.x_in]
+        # Filter based on what is set / active?
+        return {self.input.name: self.input}
 
     @property
     def params(self):
         """Return a list of all Parameters in the node."""
-        return [self.weights, self.bias]
+        # Filter based on what is set / active?
+        return {self.weights.name: self.weights,
+                self.bias.name: self.bias}
 
     @property
     def outputs(self):
         """Return a list of all active Outputs in the node."""
-        return [self.z_out]
+        # Filter based on what is set / active?
+        return {self.output.name: self.output}
 
     def transform(self):
         """writeme."""
-        assert self.x_in.variable, "Input port not set."
+        assert self.input.variable, "Input port not set."
         weights = self.weights.variable
         bias = self.bias.variable.dimshuffle('x', 0, 'x', 'x')
-        z_out = T.nnet.conv.conv2d(
-            input=self.x_in.variable,
+        output = T.nnet.conv.conv2d(
+            input=self.input.variable,
             filters=weights,
             filter_shape=self.weights.shape,
             border_mode=self.border_mode)
 
-        z_out = self.activation(z_out + bias)
+        output = self.activation(output + bias)
 
         if self.dropout.variable:
-            output_shape = list(self.z_out.shape)
+            output_shape = list(self.output.shape)
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
                 size=output_shape,
                 p=1.0 - dropout)
 
-            z_out *= selector.dimshuffle('x', 0, 'x', 'x') * (dropout + 0.5)
+            output *= selector.dimshuffle('x', 0, 'x', 'x') * (dropout + 0.5)
 
-        z_out = downsample.max_pool_2d(
-            z_out, self.pool_shape, ignore_border=False)
-        self.z_out.variable = z_out
+        output = downsample.max_pool_2d(
+            output, self.pool_shape, ignore_border=False)
+        self.output.variable = output
 
 
-class Softmax(Affine):
+class Likelihood(Affine):
     """writeme. """
 
-    @classmethod
-    def simple(cls, name, input_shape, n_out, act_type):
-        """
-        """
-        n_in = int(np.prod(input_shape))
-        inputs = dict(x_in=core.Port(input_shape))
-        outputs = dict(z_out=core.Port([n_out]))
-        params = dict(weights=core.Parameter([n_in, n_out]),
-                      bias=core.Parameter([n_out, ]))
-        return cls(name=name, inputs=inputs, outputs=outputs, params=params,
-                   scalars=dict(), act_type=act_type)
+    def __init__(self, name, input_shape, n_out, act_type):
+        Node.__init__(
+            self,
+            name=name,
+            input_shape=input_shape,
+            n_out=n_out,
+            act_type=act_type)
+        self.act_type = act_type
 
-    def transform(self, x_in):
+        n_in = int(np.prod(input_shape))
+        weight_shape = [n_in, n_out]
+
+        self.input = core.Port(
+            shape=input_shape, name=self.__own__('input'))
+        self.output = core.Port(
+            shape=[n_out], name=self.__own__('output'))
+        self.dropout = core.Port(
+            shape=None, name=self.__own__('dropout'))
+        self.weights = core.Parameter(
+            shape=weight_shape, name=self.__own__('weights'))
+        self.bias = core.Parameter(
+            shape=[n_out], name=self.__own__('bias'))
+
+    def transform(self):
         """
         will fix input tensors to be matrices as the following:
         (N x d0 x d1 x ... dn) -> (N x prod(d_(0:n)))
         """
-        weights = self.params.weights.variable
-        bias = self.params.bias.variable.dimshuffle('x', 0)
-        x_in = T.flatten(x_in, outdim=2)
-        z_out = T.nnet.softmax(self.activation(T.dot(x_in, weights) + bias))
-        return z_out
+        # I don't think we want this, but I'll leave it for now.
+        assert self.dropout.variable is None, \
+            "Softmax nodes do not currently support dropout."
+        Affine.transform(self)
+        self.output.variable = T.nnet.softmax(self.output.variable)
 
 
 class Conv2D(Node):
@@ -317,8 +341,8 @@ class Conv2D(Node):
             weights *= 4
 
         bias = np.zeros(weight_shape[0])
-        self.param_values = {self.own('weights'): weights,
-                             self.own('bias'): bias, }
+        self.param_values = {self.__own__('weights'): weights,
+                             self.__own__('bias'): bias, }
 
     def transform(self, x_in):
         """writeme"""
@@ -410,5 +434,3 @@ class LpDistance(Node):
 
 class LpPenalty(Node):
     pass
-
-
