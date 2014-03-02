@@ -92,9 +92,9 @@ loss_edges = transform_edges + [
     (classifier.output, nll.likelihood),
     (class_labels, nll.target_idx),
     (conv.weights, conv_decay.input),
-    (decay, conv_decay.parameter),
+    (decay, conv_decay.weight),
     (affine.output, affine_sparsity.input),
-    (sparsity, affine_sparsity.parameter)]
+    (sparsity, affine_sparsity.weight)]
 
 # Build the actual functions
 # - - - - - - - - - - - - - -
