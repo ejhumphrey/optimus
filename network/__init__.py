@@ -23,7 +23,7 @@ from .losses import L1Magnitude
 from .losses import L2Magnitude
 from .framework import Canvas
 from .framework import ConnectionManager
-# from .framework import Graph
+from .framework import Graph
 
 
 def __jsonSupport__():

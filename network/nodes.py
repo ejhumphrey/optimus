@@ -32,7 +32,9 @@ class Node(core.JObject):
 
     def is_ready(self):
         """Return true when all input ports are loaded."""
-        return all([p.variable for p in self.inputs.values()])
+        set_inputs = all([p.variable for p in self.inputs.values()])
+        set_outputs = all([p.variable for p in self.outputs.values()])
+        return set_inputs and not set_outputs
 
     def reset(self):
         """writeme"""
@@ -134,9 +136,9 @@ class Affine(Node):
         weights = self.weights.variable
         bias = self.bias.variable.dimshuffle('x', 0)
 
-        x_in = T.flatten(self.inputs.variable, outdim=2)
+        x_in = T.flatten(self.input.variable, outdim=2)
         z_out = self.activation(T.dot(x_in, weights) + bias)
-        output_shape = list(self.z_out.shape)
+        output_shape = list(self.output.shape)
         z_out = T.reshape(z_out, [z_out.shape[0]] + output_shape)
         if not self.dropout.variable is None:
             dropout = self.dropout.variable
@@ -144,7 +146,7 @@ class Affine(Node):
                 size=output_shape, p=1.0 - dropout)
             z_out *= selector.dimshuffle('x', 0) * (dropout + 0.5)
 
-        self.z_out.variable = z_out
+        self.output.variable = z_out
 
 
 class Conv3D(Node):

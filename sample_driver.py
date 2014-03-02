@@ -69,7 +69,7 @@ affine_out = optimus.Output(
     name='features')
 
 # Assemble everything
-modules = optimus.Canvas(
+canvas = optimus.Canvas(
     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],              # Differentiable
     losses=[nll, conv_decay, affine_sparsity],     # Non-differentiable
@@ -100,56 +100,57 @@ loss_edges = transform_edges + [
 # - - - - - - - - - - - - - -
 transform = optimus.Graph(
     name='transform',
-    modules=modules,
+    canvas=canvas,
     edges=transform_edges,
-    outputs=[posterior.output])
+    outputs=[posterior])
 
-loss = optimus.Graph(
-    name='loss',
-    modules=modules,
-    edges=loss_edges,
-    losses=[nll.cost],  # Losses are a collection of Ports
-    outputs="losses")
+# Losses are a collection of Ports to sum
+# loss = optimus.Graph(
+#     name='loss',
+#     modules=modules,
+#     edges=loss_edges,
+#     outputs="losses",
+#     losses=[nll.cost])
 
-train = optimus.Graph(
-    name='train',
-    modules=modules,
-    edges=loss_edges,
-    losses=[nll.cost, conv_decay.cost, affine_sparsity.cost],
-    constraints=[optimus.UnitL2Norm(conv.weights)],
-    outputs="losses",
-    updates=[(param, learning_rate) for param in modules.params])
+# train = optimus.Graph(
+#     name='train',
+#     modules=modules,
+#     edges=loss_edges,
+#     outputs="losses",
+#     losses=[nll.cost, conv_decay.cost, affine_sparsity.cost],
+#     constraints=[optimus.L2UnitNorm(conv.weights)],
+#     updates=[(param, learning_rate) for param in modules.params])
 
-# --------------------
-# 3. Create Data
-# --------------------
-fh_train = optimus.File("/Users/ejhumphrey/Desktop/mnist_train.hdf5")
-train_source = optimus.Factory(fh_train, batch_size=50, refresh_prob=0)
+# # --------------------
+# # 3. Create Data
+# # --------------------
+# fh_train = optimus.File("/Users/ejhumphrey/Desktop/mnist_train.hdf5")
+# train_source = optimus.Factory(fh_train, batch_size=50, refresh_prob=0)
 
-train_inputs = optimus.DataServer([
-    optimus.Variable(
-        input_data, value=train_source.values, update=train_source.buffer),
-    optimus.Variable(class_labels, value=train_source.labels),
-    optimus.Constant(sparsity, value=0),
-    optimus.Constant(decay, value=0),
-    optimus.Constant(learning_rate, value=0.01)])
+# train_inputs = optimus.DataServer([
+#     optimus.Variable(
+#         input_data, value=train_source.values, update=train_source.buffer),
+#     optimus.Variable(class_labels, value=train_source.labels),
+#     optimus.Constant(sparsity, value=0),
+#     optimus.Constant(decay, value=0),
+#     optimus.Constant(learning_rate, value=0.01)])
 
-trainer = optimus.Driver(
-    name="mnist_training",
-    graph=train,
-    data=train_inputs)
+# trainer = optimus.Driver(
+#     name="mnist_training",
+#     graph=train,
+#     data=train_inputs)
 
-fh_valid = optimus.File("/Users/ejhumphrey/Desktop/mnist_valid.hdf5")
-valid_source = optimus.Factory(fh_valid, batch_size=50, refresh_prob=0)
+# fh_valid = optimus.File("/Users/ejhumphrey/Desktop/mnist_valid.hdf5")
+# valid_source = optimus.Factory(fh_valid, batch_size=50, refresh_prob=0)
 
-inputs_valid = optimus.DataServer([
-    optimus.Variable(
-        input_data, value=valid_source.values, update=valid_source.buffer),
-    optimus.Variable(class_labels, value=valid_source.labels)])
+# inputs_valid = optimus.DataServer([
+#     optimus.Variable(
+#         input_data, value=valid_source.values, update=valid_source.buffer),
+#     optimus.Variable(class_labels, value=valid_source.labels)])
 
-validator = optimus.Driver(
-    name="mnist_validation",
-    graph=loss,
-    data=inputs_valid)
+# validator = optimus.Driver(
+#     name="mnist_validation",
+#     graph=loss,
+#     data=inputs_valid)
 
-trainer.run(max_iter=5000, print_freq=25)
+# trainer.run(max_iter=5000, print_freq=25)

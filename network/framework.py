@@ -2,32 +2,54 @@
 from . import core
 
 
+def named_list(items):
+    return dict([(obj.name, obj) for obj in items])
+
+
 class Canvas(core.JObject):
     def __init__(self, inputs, nodes, losses, outputs):
-
-        self.inputs = inputs
-        self.nodes = nodes
-        self.losses = losses
-        self.outputs = outputs
+        """
+        inputs: list of Inputs
+        nodes: list of Nodes
+        """
+        self._inputs = inputs
+        self._nodes = nodes
+        self._losses = losses
+        self._outputs = outputs
 
     @property
     def __json__(self):
         return dict(
-            inputs=self.inputs,
-            nodes=self.nodes,
-            losses=self.losses,
-            outputs=self.outputs,
+            inputs=self._inputs,
+            nodes=self._nodes,
+            losses=self._losses,
+            outputs=self._outputs,
             type=self.type)
 
-    def collect(self):
-        pass
+    @property
+    def inputs(self):
+        return named_list(self._inputs)
+
+    @property
+    def nodes(self):
+        return named_list(self._nodes)
+
+    @property
+    def losses(self):
+        return named_list(self._losses)
+
+    @property
+    def outputs(self):
+        return named_list(self._outputs)
 
 
 class ConnectionManager(core.JObject):
-    def __init__(self, edges):
+    def __init__(self, edges=None):
         """
         edges: list of Port tuples
         """
+        if edges is None:
+            edges = list()
         self.connection_map = dict()
         for source, sink in edges:
             self.add_edge(source, sink)
@@ -54,53 +76,66 @@ class ConnectionManager(core.JObject):
         self.connection_map[source.name].append(sink.name)
 
 
-# class Graph(core.JObject):
-#     """writeme."""
-#     def __init__(self, inputs=None, connections=None, outputs=None,
-#                  losses=None, updates=None, constraints=None):
-#         """
-#         All arguments are native Python types.
+class Graph(core.JObject):
+    """writeme."""
+    def __init__(self, name, canvas, outputs, edges,
+                 loss=None, updates=None, constraints=None):
+        """writeme.
 
-#         inputs: list of arg dictionaries
-#         outputs: list of strings
-#         """
+        """
+        self.canvas = canvas
+        self.connection_map = ConnectionManager(edges).connection_map
+        # Walk inputs to outputs via connection map
+        input_ports = dict()
+        for source_name in self.connection_map:
+            source = self.canvas.inputs.get(source_name, None)
+            if source:
+                input_ports[source_name] = source
 
-#         self._outputs = dict()
+        for node in canvas.nodes.values():
+            input_ports.update(node.inputs)
+        for node in canvas.losses.values():
+            input_ports.update(node.inputs)
+        input_ports.update(canvas.outputs)
 
-#         if inputs is None:
-#             inputs = list()
-#         if connections is None:
-#             connections = dict()
-#         if outputs is None:
-#             outputs = list()
-#         if losses is None:
-#             losses = dict()
-#         if updates is None:
-#             updates = dict()
-#         if constraints is None:
-#             constraints = dict()
+        local_map = self.connection_map.copy()
+        modules = canvas.nodes.values() + canvas.losses.values()
+        while local_map:
+            nothing_happened = True
+            for source_name in input_ports:
+                print "Source: %s" % source_name
+                if source_name in local_map:
+                    sinks = local_map.pop(source_name)
+                    print "Sinks: %s" % sinks
+                    for sink_name in sinks:
+                        nothing_happened = False
+                        "Connecting %s to %s" % (source_name, sink_name)
+                        input_ports[sink_name].connect(input_ports[source_name])
+                    print "Remaining map: %s" % local_map
+            for node in modules:
+                print "Node: %s" % node.name
+                if node.is_ready():
+                    node.transform()
+                    input_ports.update(node.outputs)
+                    nothing_happened = False
+                    break
+            if nothing_happened:
+                "Failsafe..."
+                break
+        self.ports = input_ports
 
-#         self._inputs = dict([(obj.name, obj) for obj in inputs])
+    @property
+    def __json__(self):
+        return dict(inputs=self._inputs.values(), type=self.type)
 
-#         # Native data structure
-#         # self.connections = Struct([(k, v) for k, v in connections.items()])
-#         # self.outputs = Struct()
+    @classmethod
+    def __json_init__(cls, inputs):
+        inputs = [core.Input(**args) for args in inputs]
+        return cls(inputs)
 
-#         # Necessary? Could implicitly sum all losses to a reserved key.
-#         # self.losses = None
-
-#     @property
-#     def __json__(self):
-#         return dict(inputs=self._inputs.values(), type=self.type)
-
-#     @classmethod
-#     def __json_init__(cls, inputs):
-#         inputs = [core.Input(**args) for args in inputs]
-#         return cls(inputs)
-
-#     def transform(self, manager):
-#         """writeme"""
-#         pass
+    def transform(self, manager):
+        """writeme"""
+        pass
 
 
 # class Driver(Struct):
