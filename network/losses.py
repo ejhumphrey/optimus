@@ -35,6 +35,10 @@ class Loss(core.JObject):
         """writeme."""
         self.name = name
         self.__args__ = dict(**kwargs)
+        self.loss = core.Port(
+            shape=[], name=self.__own__("loss"))
+        self.cost = core.Port(
+            shape=None, name=self.__own__("cost"))
 
     def is_ready(self):
         """Return true when all input ports are loaded."""
@@ -84,10 +88,6 @@ class NegativeLogLikelihood(Loss):
             name=self.__own__("likelihood"))
         self.target_idx = core.Port(
             name=self.__own__("target_idx"), shape=[])
-        self.loss = core.Port(
-            shape=[], name=self.__own__("loss"))
-        self.cost = core.Port(
-            shape=None, name=self.__own__("cost"))
 
     @property
     def inputs(self):
@@ -119,6 +119,7 @@ class ContrastiveDivergence(Loss):
     _MARGIN = 'margin'
 
     def __init__(self, distance, score, margin):
+        raise NotImplementedError("come back to this")
         # Input Validation
         self.update(distance=distance, score=score, margin=margin)
         Loss.__init__(self)
@@ -144,70 +145,43 @@ class ContrastiveDivergence(Loss):
         return T.pow(soft_hinge(margin, x), 2.0)
 
 
-class LpNorm(Loss):
-    _VARIABLE = 'variable'
-    _WEIGHT = 'weight'
-    _P = 'p'
-
-    def __init__(self, variable, weight, p):
-        # Input Validation
-        self.update(variable=variable, p=p, weight=weight)
-        Loss.__init__(self)
+class L1Magnitude(Loss):
+    def __init__(self, name):
+        Loss.__init__(self, name=name)
+        self.input = core.Port(
+            name=self.__own__("input"))
+        self.weight = core.Port(
+            name=self.__own__("weight"))
 
     @property
-    def _p(self):
-        return self.get(self._P)
+    def inputs(self):
+        """Return a dict of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return dict([(v.name, v) for v in [self.input]])
 
-    def loss(self, variables):
-        """
-        variables : dict
-            Set of URL-keyed variables from which to select.
-        """
-        variable = variables[self[self._VARIABLE]]
-        scalar_loss = T.pow(T.sum(T.pow(T.abs_(variable), self._p)),
-                            1.0 / self._p)
-        weight = T.scalar(name=self[self._WEIGHT])
-        return scalar_loss*weight, {weight.name: weight}
+    @property
+    def outputs(self):
+        """Return a dict of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return dict([(v.name, v) for v in [self.loss, self.cost]])
 
-
-class L1Norm(Loss):
-    _VARIABLE = 'variable'
-    _WEIGHT = 'weight'
-
-    def __init__(self, variable, weight):
-        # Input Validation
-        self.update(variable=variable, weight=weight)
-        Loss.__init__(self)
-
-    def loss(self, variables):
-        """
-        variables : dict
-            Set of URL-keyed variables from which to select.
-        """
-        variable = variables[self[self._VARIABLE]]
-        scalar_loss = T.sum(T.abs_(variable))
-        weight = T.scalar(name=self[self._WEIGHT])
-        return scalar_loss*weight, {weight.name: weight}
+    def transform(self):
+        """writeme"""
+        assert self.input.variable, "Port error: '%s' not set." % self.input
+        assert self.weight.variable, "Port error: '%s' not set." % self.weight
+        var_magnitude = T.sum(T.abs_(self.input.variable))
+        self.cost.variable = var_magnitude * self.weight.variable
 
 
-class L2Norm(Loss):
-    _VARIABLE = 'variable'
-    _WEIGHT = 'weight'
+class L2Magnitude(L1Magnitude):
 
-    def __init__(self, variable, weight):
-        # Input Validation
-        self.update(variable=variable, weight=weight)
-        Loss.__init__(self)
+    def transform(self):
+        """writeme"""
+        assert self.input.variable, "Port error: '%s' not set." % self.input
+        assert self.weight.variable, "Port error: '%s' not set." % self.weight
+        var_magnitude = T.pow(T.sum(T.pow(self.input.variable, 2.0)), 0.5)
+        self.cost.variable = var_magnitude * self.weight.variable
 
-    def loss(self, variables):
-        """
-        variables : dict
-            Set of URL-keyed variables from which to select.
-        """
-        variable = variables[self[self._VARIABLE]]
-        scalar_loss = T.pow(T.sum(T.pow(variable, 2.0)), 0.5)
-        weight = T.scalar(name=self[self._WEIGHT])
-        return scalar_loss*weight, {weight.name: weight}
 
 # def mean_squared_error(name, inputs):
 #     """
