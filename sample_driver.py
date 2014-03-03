@@ -98,28 +98,28 @@ loss_edges = transform_edges + [
 
 # Build the actual functions
 # - - - - - - - - - - - - - -
-transform = optimus.Graph(
-    name='transform',
-    canvas=canvas,
-    edges=transform_edges,
-    outputs=[posterior])
+# transform = optimus.Graph(
+#     name='transform',
+#     canvas=canvas,
+#     edges=transform_edges,
+#     outputs=[posterior])
 
-# Losses are a collection of Ports to sum
+#  Losses are a collection of Ports to sum
 # loss = optimus.Graph(
 #     name='loss',
-#     modules=modules,
+#     canvas=canvas,
 #     edges=loss_edges,
-#     outputs="losses",
-#     losses=[nll.cost])
+#     outputs=["loss"],
+#     loss_ports=[nll.cost])
 
-# train = optimus.Graph(
-#     name='train',
-#     modules=modules,
-#     edges=loss_edges,
-#     outputs="losses",
-#     losses=[nll.cost, conv_decay.cost, affine_sparsity.cost],
-#     constraints=[optimus.L2UnitNorm(conv.weights)],
-#     updates=[(param, learning_rate) for param in modules.params])
+train = optimus.Graph(
+    name='train',
+    canvas=canvas,
+    edges=loss_edges,
+    outputs=["loss"],
+    loss_ports=[nll.cost, conv_decay.cost, affine_sparsity.cost],
+    # constraints=[optimus.L2UnitNorm(conv.weights)],
+    update_param=learning_rate)
 
 # # --------------------
 # # 3. Create Data

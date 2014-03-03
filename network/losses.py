@@ -42,7 +42,9 @@ class Loss(core.JObject):
 
     def is_ready(self):
         """Return true when all input ports are loaded."""
-        return all([p.variable for p in self.inputs.values()])
+        set_inputs = all([p.variable for p in self.inputs.values()])
+        set_outputs = all([p.variable for p in self.outputs.values()])
+        return set_inputs and not set_outputs
 
     def reset(self):
         """writeme"""
@@ -62,6 +64,10 @@ class Loss(core.JObject):
 
     def __own__(self, name):
         return "%s.%s" % (self.name, name)
+
+    @property
+    def params(self):
+        return {}
 
     # --- Subclassed methods ---
     def transform(self):
@@ -157,13 +163,13 @@ class L1Magnitude(Loss):
     def inputs(self):
         """Return a dict of all active Outputs in the node."""
         # Filter based on what is set / active?
-        return dict([(v.name, v) for v in [self.input]])
+        return dict([(v.name, v) for v in [self.input, self.weight]])
 
     @property
     def outputs(self):
         """Return a dict of all active Outputs in the node."""
         # Filter based on what is set / active?
-        return dict([(v.name, v) for v in [self.loss, self.cost]])
+        return dict([(v.name, v) for v in [self.cost]])
 
     def transform(self):
         """writeme"""

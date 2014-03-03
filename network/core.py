@@ -208,7 +208,7 @@ class Parameter(object):
         self.shape = shape
         if value is None:
             value = np.zeros(self.shape, dtype=FLOATX)
-        self.variable = theano.shared(value=value)
+        self._variable = theano.shared(value=value)
         self.name = name
 
     def __repr__(self):
@@ -234,3 +234,7 @@ class Parameter(object):
     def name(self, name):
         """writeme."""
         self.variable.name = name
+
+    @property
+    def variable(self):
+        return self._variable
