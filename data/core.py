@@ -1,8 +1,17 @@
 """
+
+Data Objects:
+
+The top-level object is an Entity, which consists of named Features. For
+example, and Entity might correspond to some observation, and has three
+Features; chroma, mfccs, and label.
+
+The goal of entities / features is to provide a seamless de/serialization
+data structure for scaling well with potentially massive datasets.
 """
 
 
-class NamedStruct(object):
+class Entity(object):
     """writeme."""
     def __init__(self, **kwargs):
         object.__init__(self)
@@ -18,7 +27,16 @@ class NamedStruct(object):
         return self.__dict__.keys()
 
     def add(self, key, value):
-        """writeme."""
+        """TODO(ejhumphrey): Why this instead of __setitem__? Is it an h5py
+        consistency thing?
+
+        Parameters
+        ----------
+        key: str
+            Attribute name, must be valid python syntax.
+        value: Feature
+            Feature corresponding to the given key.
+        """
         self.__dict__[key] = value
 
     def __getitem__(self, key):
@@ -27,6 +45,14 @@ class NamedStruct(object):
 
     def __len__(self):
         return len(self.keys())
+
+    @classmethod
+    def from_hdf5_group(cls, group):
+        """writeme."""
+        new_grp = cls()
+        for key in group:
+            new_grp.add(key, _LazyFeature(group[key]))
+        return new_grp
 
 
 class Feature(object):
@@ -44,13 +70,14 @@ class Feature(object):
     @classmethod
     def from_hdf5_dataset(cls, hdf5_dataset):
         """This might be poor practice."""
-        return LazyFeature(hdf5_dataset)
+        return _LazyFeature(hdf5_dataset)
 
 
-class LazyFeature(object):
+class _LazyFeature(object):
     """Lazy-loading Feature for reading data from HDF5 files.
 
-    Do not use directly."""
+    Note: Do not use directly. This class provides a common interface with
+    Features, but only returns information as needed, wrapping h5py types."""
     def __init__(self, hdf5_dataset):
         self._dataset = hdf5_dataset
         self._value = None
@@ -69,15 +96,3 @@ class LazyFeature(object):
         if self._attrs is None:
             self._attrs = dict(self._dataset.attrs)
         return self._attrs
-
-
-class Entity(NamedStruct):
-    """writeme."""
-
-    @classmethod
-    def from_hdf5_group(cls, group):
-        """writeme."""
-        new_grp = cls()
-        for key in group:
-            new_grp.add(key, LazyFeature(group[key]))
-        return new_grp
