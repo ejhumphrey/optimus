@@ -1,0 +1,40 @@
+sklearn style
+
+
+Harness:
+
+- init(graph)
+
+- fit(source, hyperparams, n_iter, print_freq, etc)
+    interface directly with the graph; need to write different harnesses per
+        problem
+
+
+
+Graph
+
+- init(canvas, edges, outputs, contraints, updates)
+
+- compile()
+    build internal theano function
+
+- call(**kwargs)
+    must match the compiled function
+    buffer inputs if too large?
+    after every call, execute constraints
+
+
+
+
+Order
+
+Training
+- build nodes (from python or json)
+- build graphs (from python or json)
+- build harnesses (from python)
+- build sources (from python)
+
+Transform
+- build nodes (from python or json)
+- build graphs (from python or json)
+- build transform (from python)

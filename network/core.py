@@ -149,6 +149,63 @@ class Port(object):
         return len(self.shape)
 
 
+class PortList(object):
+    """writeme
+
+    Doesn't do any shape validation so... guess that's more for convenience
+    than anything else.
+    """
+    def __init__(self, name):
+        self._variable = []
+        self.name = name
+
+    # I don't know that a port ever needs to be serialized....
+    @property
+    def __json__(self):
+        return dict(name=self.name, type=self.type)
+
+    @classmethod
+    def __json_init__(cls, **kwargs):
+        return cls(**kwargs)
+
+    def __repr__(self):
+        """Render the object as an unambiguous string."""
+        return '<%s: %s>' % (self.type, self.name)
+
+    @property
+    def type(self):
+        """writeme."""
+        return self.__class__.__name__
+
+    def reset(self):
+        """writeme"""
+        while self._variable:
+            self._variable.pop(0)
+
+    def connect(self, source):
+        """writeme"""
+        self._variable.append(source._variable)
+
+    @property
+    def variable(self):
+        """writeme"""
+        return self._variable
+
+    # TODO(ejhumphrey): Is this necessary??
+    # --------------------------------------
+    # @variable.setter
+    # def variable(self, value):
+    #     """writeme"""
+    #     self._variable[0] = value
+
+    # @property
+    # def ndim(self):
+    #     """writeme."""
+    #     if self.shape is None:
+    #         return None
+    #     return len(self.shape)
+
+
 class Input(Port):
     """writeme.
 

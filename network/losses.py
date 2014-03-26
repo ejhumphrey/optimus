@@ -6,29 +6,6 @@ from . import FLOATX
 from . import functions
 
 
-class Accumulator(list):
-
-    def __init__(self, losses, variables):
-        list.__init__(self, losses)
-        self._total(variables)
-
-    def _total(self, variables):
-        self._inputs = dict()
-        self._total_loss = 0.0
-        for l in self:
-            scalar_loss, inputs = l.loss(variables)
-            self._inputs.update(inputs)
-            self._total_loss += scalar_loss
-
-    @property
-    def total(self):
-        return self._total_loss
-
-    @property
-    def inputs(self):
-        return self._inputs
-
-
 class Loss(core.JObject):
 
     def __init__(self, name, **kwargs):
@@ -82,7 +59,28 @@ class Loss(core.JObject):
     @property
     def outputs(self):
         """Return a list of all active Outputs in the node."""
-        raise NotImplementedError("Subclass me")
+        # Filter based on what is set / active?
+        return dict([(v.name, v) for v in [self.loss, self.cost]])
+
+
+class Accumulator(Loss):
+    """writeme"""
+    def __init__(self, name):
+        # Input Validation
+        Loss.__init__(self, name=name)
+        self.input_list = core.PortList(
+            name=self.__own__("input_list"))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return dict([(v.name, v) for v in [self.input_list]])
+
+    def transform(self):
+        """writeme"""
+        assert self.input_list.variable, "Port error: 'input_list' not set."
+        self.cost.variable = sum(self.input_list.variable)
 
 
 class NegativeLogLikelihood(Loss):
@@ -101,11 +99,11 @@ class NegativeLogLikelihood(Loss):
         # Filter based on what is set / active?
         return dict([(v.name, v) for v in [self.likelihood, self.target_idx]])
 
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return dict([(v.name, v) for v in [self.loss, self.cost]])
+    # @property
+    # def outputs(self):
+    #     """Return a list of all active Outputs in the node."""
+    #     # Filter based on what is set / active?
+    #     return dict([(v.name, v) for v in [self.loss, self.cost]])
 
     def transform(self):
         """writeme"""

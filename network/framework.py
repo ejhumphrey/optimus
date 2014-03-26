@@ -92,6 +92,7 @@ class Graph(core.JObject):
         self.outputs = dict([(key, None) for key in outputs])
         self.params = dict()
         self.loss = 0
+        self._fx = None
         self.connection_map = ConnectionManager(edges).connection_map
         self.__wire__()
         # Configure losses
@@ -157,6 +158,7 @@ class Graph(core.JObject):
         # Special Case
         if "loss" in self.outputs:
             self.outputs['loss'] = self.loss
+        # Now call theano.function?
 
     @property
     def __json__(self):
@@ -167,9 +169,10 @@ class Graph(core.JObject):
         inputs = [core.Input(**args) for args in inputs]
         return cls(inputs)
 
-    def transform(self, data):
+    def __call__(self, **kwargs):
         """writeme"""
-        pass
+        return self._fx(**kwargs)
+
 
 # class Driver(Struct):
 #     """writeme."""
