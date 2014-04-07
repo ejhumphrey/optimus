@@ -1,7 +1,7 @@
 {
     "nodes": {
         "conv": {
-            "cls": "Conv3D",
+            "type": "Conv3D",
             "input_shape":[1, 28, 28],
             "weight_shape": [10, 1, 9, 9],
             "pool_shape": [2, 2],
@@ -10,34 +10,35 @@
             "act_type": "relu"
         },
         "affine": {
-            "cls": "Affine",
+            "type": "Affine",
             "input_shape":[10, 10, 10],
             "output_shape": [128],
             "act_type": "relu"
         },
         "classifier": {
-            "cls": "Softmax",
+            "type": "Softmax",
             "input_shape": [128],
             "n_out": 10,
             "act_type": "linear"
         },
         "nll": {
-            "cls": "NegativeLogLikelihood"
+            "type": "NegativeLogLikelihood"
         },
         "conv_reg": {
-            "cls": "L2Penalty"
+            "type": "L2Penalty"
         },
         "affine_sparsity": {
-            "cls": "L1Penalty"
+            "type": "L1Penalty"
         }
     },
     "graphs": {
         "transform": {
-            "inputs": {
-                "x_in":{
+            "inputs": [
+                {
+                    "name": "x_in",
                     "shape": [1, 28, 28]
                 }
-            },
+            ],
             "connections": {
                 "x_in": ["conv.input"],
                 "conv.output": ["affine.input"],

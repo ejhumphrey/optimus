@@ -1,6 +1,7 @@
 """write meeee
 """
 import optimus
+from optimus.examples.mnist import InputDigit
 
 # --------------------
 # 1. Create Components
@@ -8,13 +9,18 @@ import optimus
 # Inputs
 # - - - - - - -
 input_data = optimus.Input(
-    name='input_data',
-    shape=(1, 28, 28))
+    name='images',
+    shape=(None, 1, 28, 28))
 
 class_labels = optimus.Input(
-    name='class_labels',
-    shape=[],
+    name='labels',
+    shape=(None,),
     dtype='int32')
+
+labeled_entity = InputDigit(
+    name='digits',
+    images=input_data,
+    labels=class_labels)
 
 decay = optimus.Input(
     name='decay_param',
@@ -82,7 +88,7 @@ canvas = optimus.Canvas(
 # Note: These should all be Ports.
 # - - - - - - - - - - - - - - - - - - - - - -
 transform_edges = [
-    (input_data, conv.input),
+    (labeled_entity.images, conv.input),
     (conv.output, affine.input),
     (affine.output, classifier.input),
     (affine.output, affine_out),
@@ -121,36 +127,36 @@ train = optimus.Graph(
     # constraints=[optimus.L2UnitNorm(conv.weights)],
     update_param=learning_rate)
 
-# # --------------------
-# # 3. Create Data
-# # --------------------
-# fh_train = optimus.File("/Users/ejhumphrey/Desktop/mnist_train.hdf5")
-# train_source = optimus.Factory(fh_train, batch_size=50, refresh_prob=0)
+# --------------------
+# 3. Create Data
+# --------------------
+fh_train = optimus.File("/Users/ejhumphrey/Desktop/mnist_train.hdf5")
+train_source = optimus.Factory(fh_train, batch_size=50, refresh_prob=0)
 
-# train_inputs = optimus.DataServer([
-#     optimus.Variable(
-#         input_data, value=train_source.values, update=train_source.buffer),
-#     optimus.Variable(class_labels, value=train_source.labels),
-#     optimus.Constant(sparsity, value=0),
-#     optimus.Constant(decay, value=0),
-#     optimus.Constant(learning_rate, value=0.01)])
+train_inputs = optimus.DataServer([
+    optimus.Variable(
+        input_data, value=train_source.values, update=train_source.buffer),
+    optimus.Variable(class_labels, value=train_source.labels),
+    optimus.Constant(sparsity, value=0),
+    optimus.Constant(decay, value=0),
+    optimus.Constant(learning_rate, value=0.01)])
 
-# trainer = optimus.Driver(
-#     name="mnist_training",
-#     graph=train,
-#     data=train_inputs)
+trainer = optimus.Driver(
+    name="mnist_training",
+    graph=train,
+    data=train_inputs)
 
-# fh_valid = optimus.File("/Users/ejhumphrey/Desktop/mnist_valid.hdf5")
-# valid_source = optimus.Factory(fh_valid, batch_size=50, refresh_prob=0)
+fh_valid = optimus.File("/Users/ejhumphrey/Desktop/mnist_valid.hdf5")
+valid_source = optimus.Factory(fh_valid, batch_size=50, refresh_prob=0)
 
-# inputs_valid = optimus.DataServer([
-#     optimus.Variable(
-#         input_data, value=valid_source.values, update=valid_source.buffer),
-#     optimus.Variable(class_labels, value=valid_source.labels)])
+inputs_valid = optimus.DataServer([
+    optimus.Variable(
+        input_data, value=valid_source.values, update=valid_source.buffer),
+    optimus.Variable(class_labels, value=valid_source.labels)])
 
-# validator = optimus.Driver(
-#     name="mnist_validation",
-#     graph=loss,
-#     data=inputs_valid)
+validator = optimus.Driver(
+    name="mnist_validation",
+    graph=loss,
+    data=inputs_valid)
 
-# trainer.run(max_iter=5000, print_freq=25)
+trainer.run(max_iter=5000, print_freq=25)
