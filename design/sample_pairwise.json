@@ -1,0 +1,167 @@
+{
+    "losses": {
+        "nll": "NegativeLogLikelihood",
+        "conv_reg": "L2Penalty",
+        "affine_sparsity": "L1Penalty"
+    },
+    "input_dims": {
+        "x_A": 4,
+        "x_B": 4,
+        "similarity": 1,
+        "learning_rate": 0,
+        "weight_decay": 0,
+        "sparsity": 0,
+        "dropout": 0
+    },
+    "nodes": {
+        "conv": {
+            "type": "Conv3D",
+            "args": {
+                "input_shape":[
+                    1,
+                    28,
+                    28
+                ],
+                "weight_shape": [
+                    10,
+                    1,
+                    9,
+                    9
+                ],
+                "pool_shape": [
+                    2,
+                    2
+                ],
+                "downsample_shape": [
+                    1,
+                    1
+                ],
+                "border_mode": "valid",
+                "act_type": "relu",
+                "enable_dropout": false
+            }
+        },
+        "conv_B": {
+            "type": "Copy",
+            "node": "conv"
+        },
+        "affine": {
+            "type": "Affine",
+            "args": {
+                "input_shape":[
+                    10,
+                    10,
+                    10
+                ],
+                "output_shape": [
+                    128
+                ],
+                "act_type": "relu",
+                "enable_dropout": false
+            }
+        },
+        "affine_B": {
+            "type": "Copy",
+            "node": "affine"
+        },
+        "distance": {
+            "type": "LPDistance",
+            "args": {
+                "lp_space": 2
+            }
+        }
+    },
+    "constraints": {},
+    "graphs": {
+        "transform": {
+            "edges": {
+                "x_A": [
+                    "conv.input"
+                ],
+                "conv.output": [
+                    "affine.input"
+                ]
+            },
+            "output": "affine.output",
+            "updates": {}
+        },
+        "loss": {
+            "edges": {
+                "x_A": [
+                    "conv.input"
+                ],
+                "conv.output": [
+                    "affine.input"
+                ],
+                "affine.output": [
+                    "distance.input_A",
+                    "affine_sparsity.variable"
+                ],
+                "x_B": [
+                    "conv_B.input"
+                ],
+                "conv_B.output": [
+                    "affine_B.input"
+                ],
+                "affine_B.output": [
+                    "distance.input_B"
+                ],
+                "distance.output": [
+                    "cd_loss.input"
+                ],
+                "similarity": [
+                    "cd_loss.label"
+                ],
+                "sparsity": [
+                    "affine_sparsity.parameter"
+                ],
+                "conv.weights": [
+                    "conv_reg.variable"
+                ],
+                "weight_decay": [
+                    "conv_reg.parameter"
+                ]
+            },
+            "output": "classifier.output",
+            "updates": {}
+        },
+        "trainer": {
+            "connections": {
+                "x_in": [
+                    "conv.input"
+                ],
+                "learning_rate": [
+                    "conv.weights.learning_rate",
+                    "conv.bias.learning_rate",
+                    "affine.weights.learning_rate",
+                    "affine.bias.learning_rate",
+                    "classifier.weights.learning_rate",
+                    "classifier.bias.learning_rate"
+                ],
+                "conv.output": [
+                    "affine.input"
+                ],
+                "affine.output": [
+                    "classifier.input",
+                    "affine_sparsity.variable"
+                ],
+                "classifier.output": [
+                    "nll.posterior"
+                ],
+                "class_idx": [
+                    "nll.target_idx"
+                ],
+                "sparsity": [
+                    "affine_sparsity.parameter"
+                ],
+                "conv.weights": [
+                    "conv_reg.variable"
+                ],
+                "weight_decay": [
+                    "conv_reg.parameter"
+                ]
+            },
+            "output": "total_loss???",
+        }
+    }
+}

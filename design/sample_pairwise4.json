@@ -1,0 +1,149 @@
+{
+    "nodes": {
+        "conv0": {
+            "type": "Conv3D",
+            "args": {
+                "input_shape":[1, 28, 28],
+                "weight_shape": [10, 1, 9, 9],
+                "pool_shape": [2, 2],
+                "downsample_shape": [1, 1],
+                "border_mode": "valid",
+                "act_type": "relu"
+            }
+        },
+        "affine0": {
+            "type": "Affine",
+            "args": {
+                "input_shape":[10, 10, 10],
+                "output_shape": [128],
+                "act_type": "relu"
+            }
+        },
+        "affine1": {
+            "type": "Softmax",
+            "args": {
+                "input_shape":[128],
+                "output_shape": [2],
+                "act_type": "relu"
+            }
+        },
+        "conv0_copy": {
+            "type": "Copy",
+            "node": "conv0"
+        },
+        "affine0_copy": {
+            "type": "Copy",
+            "node": "affine0"
+        },
+        "affine1_copy": {
+            "type": "Copy",
+            "node": "affine1"
+        },
+        "distance": {
+            "type": "LPDistance",
+            "args": {
+                "lp_space": 2
+            }
+        },
+        "cdloss": {
+            "type": "SquareLogLoss",
+            "args": {}
+        },
+        "conv0_reg": {
+            "type": "L2Penalty",
+            "args": {}
+        },
+        "affine0_sparsity": {
+            "type": "L1Penalty",
+            "args": {}
+        }
+    },
+    "graphs": {
+        "transform": {
+            "input_dims": {
+                "x_in": 4
+            },
+            "connections": {
+                "x_in": ["conv0.input"],
+                "conv0.output": ["affine0.input"],
+                "affine0.output": ["affine1.input"]
+            },
+            "losses": [],
+            "outputs": ["affine1.output"],
+            "constraints": {},
+            "update_params": {}
+        },
+        "loss": {
+            "input_dims": {
+                "x_A": 4,
+                "x_B": 4,
+                "similarity": 1,
+                "weight_decay": 0,
+                "sparsity_param": 0
+            },
+            "connections": {
+                "x_A": ["conv0.input"],
+                "conv0.output": ["affine0.input"],
+                "affine0.output": ["affine1.input", "affine0_sparsity.variable"],
+                "affine1.output": ["distance.input_A"],
+                "x_B": ["conv0_copy.input"],
+                "conv0_copy.output": ["affine0_copy.input"],
+                "affine0_copy.output": ["affine1_copy.input", "affine0_sparsity.variable"],
+                "affine1_copy.output": ["distance.input_B"],
+                "distance.output": ["cdloss.input"],
+                "similarity": ["cdloss.score"],
+                "sparsity_param": ["affine0_sparsity.parameter"],
+                "conv0.weights": ["conv0_reg.variable"],
+                "weight_decay": ["conv0_reg.parameter"]
+            },
+            "outputs": ["losses"],
+            "constraints": {},
+            "update_params": {},
+            "losses": ["cdloss.cost", "conv0_reg.cost", "affine0_sparsity.cost"]
+        },
+        "update": {
+            "input_dims": {
+                "x_A": 4,
+                "x_B": 4,
+                "similarity": 1,
+                "weight_decay": 0,
+                "sparsity_param": 0,
+                "learning_rate": 0,
+                "dropout": 0
+            },
+            "connections": {
+                "x_A": ["conv0.input"],
+                "conv0.output": ["affine0.input"],
+                "affine0.output": ["affine1.input", "affine0_sparsity.variable"],
+                "affine1.output": ["distance.input_A"],
+                "x_B": ["conv0_copy.input"],
+                "conv0_copy.output": ["affine0_copy.input"],
+                "affine0_copy.output": ["affine1_copy.input", "affine0_sparsity.variable"],
+                "affine1_copy.output": ["distance.input_B"],
+                "distance.output": ["cdloss.input"],
+                "similarity": ["cdloss.score"],
+                "sparsity_param": ["affine0_sparsity.parameter"],
+                "conv0.weights": ["conv0_reg.variable"],
+                "weight_decay": ["conv0_reg.parameter"],
+                "dropout": ["conv.dropout", "affine.dropout"]
+            },
+            "outputs": ["losses"],
+            "losses": ["nll.cost", "conv_reg.cost", "affine_sparsity.cost"],
+            "update_params": {
+                "conv0.weights": "learning_rate",
+                "conv0.bias": "learning_rate",
+                "conv0_copy.weights": "learning_rate",
+                "conv0_copy.bias": "learning_rate",
+                "affine0.weights": "learning_rate",
+                "affine0.bias": "learning_rate",
+                "affine0_copy.weights": "learning_rate",
+                "affine0_copy.bias": "learning_rate",
+                "affine1.weights": "learning_rate",
+                "affine1.bias": "learning_rate",
+                "affine1_copy.weights": "learning_rate",
+                "affine1_copy.bias": "learning_rate"
+            },
+            "constraints": {}
+        }
+    }
+}
