@@ -1,7 +1,9 @@
 
 from . import core
+from . import json
 import numpy as np
 import theano.tensor as T
+from collections import OrderedDict
 
 
 def named_list(items):
@@ -9,41 +11,41 @@ def named_list(items):
     return dict([(obj.name, obj) for obj in items])
 
 
-class Canvas(core.JObject):
-    def __init__(self, inputs, nodes, losses, outputs):
-        """
-        inputs: list of Inputs
-        nodes: list of Nodes
-        """
-        self._inputs = inputs
-        self._nodes = nodes
-        self._losses = losses
-        self._outputs = outputs
+# class Canvas(core.JObject):
+#     def __init__(self, inputs, nodes, losses, outputs):
+#         """
+#         inputs: list of Inputs
+#         nodes: list of Nodes
+#         """
+#         self._inputs = inputs
+#         self._nodes = nodes
+#         self._losses = losses
+#         self._outputs = outputs
 
-    @property
-    def __json__(self):
-        return dict(
-            inputs=self._inputs,
-            nodes=self._nodes,
-            losses=self._losses,
-            outputs=self._outputs,
-            type=self.type)
+#     @property
+#     def __json__(self):
+#         return dict(
+#             inputs=self._inputs,
+#             nodes=self._nodes,
+#             losses=self._losses,
+#             outputs=self._outputs,
+#             type=self.type)
 
-    @property
-    def inputs(self):
-        return named_list(self._inputs)
+#     @property
+#     def inputs(self):
+#         return named_list(self._inputs)
 
-    @property
-    def nodes(self):
-        return named_list(self._nodes)
+#     @property
+#     def nodes(self):
+#         return named_list(self._nodes)
 
-    @property
-    def losses(self):
-        return named_list(self._losses)
+#     @property
+#     def losses(self):
+#         return named_list(self._losses)
 
-    @property
-    def outputs(self):
-        return named_list(self._outputs)
+#     @property
+#     def outputs(self):
+#         return named_list(self._outputs)
 
 
 class ConnectionManager(core.JObject):
@@ -80,29 +82,72 @@ class ConnectionManager(core.JObject):
 
 
 class Graph(core.JObject):
-    """writeme."""
+    """Graph Implementation
+
+    Private variables are lists
+    Property attributes are named dictionaries
+
+    """
     def __init__(self, name, inputs, nodes, edges, outputs,
-                 loss=None, update_param=None, constraints=None,
+                 losses=None, update_param=None, constraints=None,
                  chunk_size=250):
         """writeme."""
-        if loss is None:
-            loss = 0
+
+        self._inputs = inputs
+        self._nodes = nodes
+        self.connection_map = ConnectionManager(edges).connection_map
+        self._outputs = outputs
+        if losses is None:
+            losses = list()
+        self._losses = losses
 
         self.chunk_size = chunk_size
-        self.ports = {}
-        self.inputs = dict()
-        self.outputs = dict([(key, None) for key in outputs])
-        self.params = dict()
-        self.loss = 0
-        self._fx = None
-        self.connection_map = ConnectionManager(edges).connection_map
-        self.__wire__()
-
-        # Configure updates
+        # Disable chunking for trainers.
         if update_param:
             self.chunk_size = None
-        # Configure constraints
-        self.__compile__()
+        self.update_param = update_param
+
+        if constraints is None:
+            constraints = list()
+        self.constraints = constraints
+
+        self.ports = {}
+        self.params = dict()
+        # Declare outputs
+        self.outputs = OrderedDict()
+        for port in outputs:
+            if port == 'loss':
+                self.outputs['loss'] = None
+            else:
+                self.outputs[port.name] = None
+
+        self._fx = None
+        # self.__wire__()
+        # self.__compile__()
+
+    @property
+    def __json__(self):
+        return dict(
+            inputs=self._inputs,
+            nodes=self._nodes,
+            outputs=self._outputs,
+            type=self.type)
+
+    @property
+    def inputs(self):
+        return named_list(self._inputs)
+
+    @property
+    def nodes(self):
+        return named_list(self._nodes)
+
+    # @property
+    # def outputs(self):
+    #     return named_list(self._outputs)
+
+    @property
+    def losses(self):
+        return named_list(self._losses)
 
     def __wire__(self):
         # Need to reset the nodes before proceeding.
@@ -111,22 +156,27 @@ class Graph(core.JObject):
         # x  Active inputs
         # x  Params touched
         #    Active outputs
+
+        # Collect all sources that are inputs.
         input_ports = dict()
         for source_name in self.connection_map:
-            source = self.canvas.inputs.get(source_name, None)
+            source = self.inputs.get(source_name, None)
             if source:
                 input_ports[source_name] = source
-                self.inputs.update({source_name: source})
 
-        for node in self.canvas.nodes.values():
+        # Collect the Inputs of all nodes...
+        for node in self.nodes.values():
             input_ports.update(node.inputs)
-        for node in self.canvas.losses.values():
+        # ...losses...
+        for node in self.losses.values():
             input_ports.update(node.inputs)
-        input_ports.update(self.canvas.outputs)
+        # ...and outputs.
+        # input_ports.update(self.outputs)
 
         local_map = self.connection_map.copy()
-        modules = self.canvas.nodes.values() + self.canvas.losses.values()
-
+        # print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
+        # print "Local Connection Map: \n%s" % json.dumps(local_map, indent=2)
+        modules = self.nodes.values() + self.losses.values()
         # This could be smarter, but it will certainly terminate.
         while local_map:
             nothing_happened = True
@@ -135,7 +185,7 @@ class Graph(core.JObject):
                     sinks = local_map.pop(source_name)
                     for sink_name in sinks:
                         nothing_happened = False
-                        print "Connecting %s to %s" % (source_name, sink_name)
+                        print "Connecting %s -> %s" % (source_name, sink_name)
                         input_ports[sink_name].connect(
                             input_ports[source_name])
             for node in modules:
@@ -161,9 +211,9 @@ class Graph(core.JObject):
             self.outputs['loss'] = self.loss
         # Now call theano.function?
 
-    @property
-    def __json__(self):
-        return dict(inputs=self._inputs.values(), type=self.type)
+    # @property
+    # def __json__(self):
+    #     return dict(inputs=self._inputs.values(), type=self.type)
 
     @classmethod
     def __json_init__(cls, inputs):
@@ -171,7 +221,7 @@ class Graph(core.JObject):
         inputs = [core.Input(**args) for args in inputs]
         return cls(inputs)
 
-    def __call__(self, **kwargs):
+    def __call__(self, *args, **kwargs):
         """writeme"""
         # Needs internal buffering strategy -- check if the value of each kwarg
         # is an np.ndarray? if not, map it over all chunks. This should be a
