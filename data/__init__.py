@@ -1,6 +1,6 @@
-from core import Entity
-from core import Feature
+from .core import Entity
+from .core import Feature
 
-from sources import File
+from .sources import File
 
-from factory import Factory
+from .queue import Queue
