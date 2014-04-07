@@ -1,4 +1,4 @@
-"""writeme."""
+"""TODO(ejhumphrey): write me."""
 
 import numpy as np
 import theano
@@ -29,7 +29,7 @@ class JObject(object):
         return '<%s>' % self.type
 
     def keys(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         names = list()
         for k in self.__dict__.keys():
             if k.startswith("_"):
@@ -38,7 +38,7 @@ class JObject(object):
         return names
 
     def __getitem__(self, key):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         return self.__dict__[key]
 
     def __len__(self):
@@ -46,51 +46,8 @@ class JObject(object):
 
     @property
     def type(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         return self.__class__.__name__
-
-
-# class Struct(JObject):
-#     """Struct object
-
-#     This object behaves like a JavaScript object, in that attributes can be
-#     accessed either by key (like a dict) or self.attr (like a class).
-#     """
-#     def __init__(self, **kwargs):
-#         self.update(**kwargs)
-
-#     @property
-#     def __json__(self):
-#         return self.items()
-
-#     def __repr__(self):
-#         """Render the object as an unambiguous string."""
-#         return '<%s>' % self.type
-
-#     def keys(self):
-#         """writeme."""
-#         keys = list()
-#         for k in self.__dict__.keys():
-#             if k.startswith("_"):
-#                 continue
-#             keys.append(k)
-#         return keys
-
-#     def update(self, **kwargs):
-#         """writeme."""
-#         for name, value in kwargs.iteritems():
-#             self.__dict__[name] = value
-
-#     def __getitem__(self, key):
-#         """writeme."""
-#         return self.__dict__[key]
-
-#     def __len__(self):
-#         return len(self.keys())
-
-#     def items(self):
-#         """writeme."""
-#         return dict([(k, self[k]) for k in self.keys()])
 
 
 class Port(object):
@@ -104,7 +61,7 @@ class Port(object):
         self.shape = shape
         self.name = name
 
-    # I don't know that a port ever needs to be serialized....
+    # TODO(ejhumphrey): Does a port ever needs to be serialized...?
     @property
     def __json__(self):
         return dict(name=self.name, type=self.type)
@@ -119,31 +76,31 @@ class Port(object):
 
     @property
     def type(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         return self.__class__.__name__
 
     def reset(self):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         self._variable[0] = None
 
     def connect(self, source):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         self._variable = source._variable
         # Save shape too?
 
     @property
     def variable(self):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         return self._variable[0]
 
     @variable.setter
     def variable(self, value):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         self._variable[0] = value
 
     @property
     def ndim(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         if self.shape is None:
             return None
         return len(self.shape)
@@ -174,33 +131,33 @@ class PortList(object):
 
     @property
     def type(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         return self.__class__.__name__
 
     def reset(self):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         while self._variable:
             self._variable.pop(0)
 
     def connect(self, source):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         self._variable.append(source._variable)
 
     @property
     def variable(self):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         return self._variable
 
     # TODO(ejhumphrey): Is this necessary??
     # --------------------------------------
     # @variable.setter
     # def variable(self, value):
-    #     """writeme"""
+    #     """TODO(ejhumphrey): write me."""
     #     self._variable[0] = value
 
     # @property
     # def ndim(self):
-    #     """writeme."""
+    #     """TODO(ejhumphrey): write me."""
     #     if self.shape is None:
     #         return None
     #     return len(self.shape)
@@ -211,12 +168,13 @@ class Input(Port):
 
     shape = ...
         None -> scalar
-        [] -> vector
-        [1, ] -> matrix
-        [1, 2, ] -> tensor3
-        [1, 2, 3, ] -> tensor4
+        [1,] -> vector
+        [1, 2, ] -> matrix
+        [1, 2, 3, ] -> tensor3
+        [1, 2, 3, 4, ] -> tensor4
 
     """
+    # TODO(ejhumphrey): Shouldn't the order of these be switched?
     def __init__(self, shape, name, dtype=None):
         self.shape = shape
         # List representation to keep consistency with Ports
@@ -226,6 +184,7 @@ class Input(Port):
 
     @property
     def __json__(self):
+        """TODO(ejhumphrey): write me."""
         return dict(
             shape=self.shape,
             name=self.name,
@@ -234,23 +193,25 @@ class Input(Port):
 
     @property
     def dtype(self):
+        """TODO(ejhumphrey): write me."""
         return self._variable[0].dtype
 
     @property
     def name(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         return self._variable[0].name
 
     @name.setter
     def name(self, name):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         self._variable[0].name = name
 
 
 class Output(Port):
-    """writeme."""
+    """TODO(ejhumphrey): write me."""
 
     def reset(self):
+        """TODO(ejhumphrey): write me."""
         self.shape = []
         self.variable = None
 
@@ -260,8 +221,9 @@ class Parameter(object):
 
     Note: Include datatype?
     """
+    # TODO(ejhumphrey): Parameters should never be anonymous, right?
     def __init__(self, shape, name="anonymous", value=None):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         self.shape = shape
         if value is None:
             value = np.zeros(self.shape, dtype=FLOATX)
@@ -273,25 +235,31 @@ class Parameter(object):
         return '<%s: %s>' % (self.type, self.name)
 
     @property
+    def type(self):
+        """TODO(ejhumphrey): write me."""
+        return self.__class__.__name__
+
+    @property
     def value(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         return self.variable.get_value()
 
     @value.setter
     def value(self, value):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         self.variable.set_value(value.astype(FLOATX))
 
     @property
     def name(self):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         return self.variable.name
 
     @name.setter
     def name(self, name):
-        """writeme."""
+        """TODO(ejhumphrey): write me."""
         self.variable.name = name
 
     @property
     def variable(self):
+        """TODO(ejhumphrey): write me."""
         return self._variable
