@@ -1,7 +1,6 @@
 """writeme"""
 
 
-from . import sources
 from . import selectors
 import numpy as np
 
@@ -55,22 +54,53 @@ class LocalCache(object):
         return key, entity
 
 
-class Queue(object):
+def unpack_entities(entities):
     """
-    The Queue Pipeline:
+    Parameters
+    ----------
+    entities: list of Entities
+        Note that all Entities must have identical fields.
 
-    Source
+    Returns
+    -------
+    arrays: dict of np.ndarrays
+        Values in 'arrays' are keyed by the
+    """
+    arrays = dict([(k, []) for k in entities[0].keys()])
+    for entity in entities:
+        for k in entity.keys():
+            if not k in arrays:
+                raise ValueError(
+                    "All Entities must have the same fields: %s" % entity)
+            arrays[k].append(entity[k].value)
+
+    for k in arrays:
+        arrays[k] = np.asarray(arrays[k])
+    return arrays
+
+
+class BatchQueue(object):
+    """
+    Note: Could potentially take a list of Feature (field) names, which may be
+    a subset of the fields in an entity.
+    Alternatively, it'd be just as easy to introduce a Transformer that deletes
+    or manages such fields (and then the unpack method never needs to change).
+
+    The BatchQueue Pipeline:
+
+     source
       |
     Selector
       |
-    Transformer
+    Transformer(s)
       |
-    Buffer
-
+    Serializer
+      |
+     result
 
     """
     def __init__(self, source, batch_size, transformers=None, selector=None,
-                 cache_size=1000, refresh_prob=0.01):
+                 serializer=None, cache_size=1000, refresh_prob=0.01):
         """writeme"""
         self._source = source
         self.batch_size = batch_size
@@ -85,6 +115,10 @@ class Queue(object):
             selector = selectors.permute_items
         self._selector = selector(self._source)
 
+        if serializer is None:
+            serializer = unpack_entities
+        self._serializer = serializer
+
         # If the requested cache size is larger than the number of items in
         # the source, snap it down and disable auto-refresh.
         if cache_size > len(source):
@@ -94,7 +128,6 @@ class Queue(object):
         self.cache = LocalCache(refresh_prob=refresh_prob, selector=selector)
         self._cache_size = cache_size
         self.populate()
-        self.update()
 
     def populate(self):
         """writeme"""
@@ -102,30 +135,13 @@ class Queue(object):
             key, entity = self._selector.next()
             self.cache.add(key, entity)
 
-    def update(self):
-        """writeme"""
-        self.clear()
-        self.populate()
-        while not self.ready:
-            self.process()
-
-    # --- Subclassable methods ---
-    def process(self):
-        """writeme"""
-        entity = self.cache.next()[-1]
-        for fx in self._transformers:
-            entity = fx(entity)
-        self.buffer(entity)
-
-    def buffer(self, entity):
-        """writeme"""
-        raise NotImplementedError("Write me")
-
-    def clear(self):
-        """writeme"""
-        raise NotImplementedError("Write me")
-
-    @property
-    def ready(self):
-        """writeme"""
-        raise NotImplementedError("Write my stopping condition")
+    def next(self):
+        """
+        """
+        item_buffer = []
+        for n in range(self.batch_size):
+            item = self.cache.next()[-1]
+            for fx in self._transformers:
+                item = fx(item)
+            item_buffer.append(item)
+        return self._serializer(item_buffer)
