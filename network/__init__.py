@@ -15,6 +15,7 @@ TENSOR_TYPES = {None: T.scalar,
 
 # from . import core
 # from . import nodes
+from .core import Port
 from .core import Input
 from .core import Output
 from .nodes import Affine

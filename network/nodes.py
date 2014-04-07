@@ -1,5 +1,4 @@
-"""writeme
-"""
+"""TODO(ejhumphrey): write me."""
 
 import numpy as np
 import theano.tensor as T
@@ -27,7 +26,7 @@ class Node(core.JObject):
     # --- Public Properties ---
     @property
     def activation(self):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         return functions.Activations.get(self.act_type)
 
     def is_ready(self):
@@ -37,7 +36,7 @@ class Node(core.JObject):
         return set_inputs and not set_outputs
 
     def reset(self):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         for p in self.inputs.values():
             p.reset()
         for p in self.outputs.values():
@@ -53,11 +52,12 @@ class Node(core.JObject):
         return '<%s: %s>' % (self.type, self.name)
 
     def __own__(self, name):
+        """TODO(ejhumphrey): write me."""
         return "%s.%s" % (self.name, name)
 
     # --- Subclassed methods ---
     def transform(self):
-        """writeme"""
+        """TODO(ejhumphrey): write me."""
         raise NotImplementedError("Subclass me!")
 
     @property
@@ -91,8 +91,8 @@ class Affine(Node):
             act_type=act_type)
         self.act_type = act_type
 
-        n_in = int(np.prod(input_shape))
-        n_out = int(np.prod(output_shape))
+        n_in = int(np.prod(input_shape[1:]))
+        n_out = int(np.prod(output_shape[1:]))
         weight_shape = [n_in, n_out]
 
         self.input = core.Port(
@@ -138,7 +138,7 @@ class Affine(Node):
 
         x_in = T.flatten(self.input.variable, outdim=2)
         z_out = self.activation(T.dot(x_in, weights) + bias)
-        output_shape = list(self.output.shape)
+        output_shape = list(self.output.shape)[1:]
         z_out = T.reshape(z_out, [z_out.shape[0]] + output_shape)
         if not self.dropout.variable is None:
             dropout = self.dropout.variable
@@ -150,7 +150,7 @@ class Affine(Node):
 
 
 class Conv3D(Node):
-    """ (>^.^<) """
+    """TODO(ejhumphrey): write me."""
 
     def __init__(self, name, input_shape, weight_shape,
                  pool_shape=(1, 1),
@@ -188,11 +188,11 @@ class Conv3D(Node):
         # Make sure the weight_shape argument is formatted properly.
         w = list(weight_shape)
         if len(w) == 3:
-            w.insert(1, input_shape[0])
+            w.insert(1, input_shape[1])
         elif len(w) == 4:
-            assert w[1] == input_shape[0], \
-                "weight_shape[1] must align with input_shape[0]: " \
-                "%d!=%d." % (w[1], input_shape[0])
+            assert w[1] == input_shape[1], \
+                "weight_shape[1] must align with input_shape[1]: " \
+                "%d!=%d." % (w[1], input_shape[1])
         else:
             raise ValueError("'weight_shape' must be length 3 or 4.")
         weight_shape = tuple(w)
@@ -206,6 +206,7 @@ class Conv3D(Node):
         elif border_mode == 'same':
             d0_out, d1_out = d0_in, d1_in
         elif border_mode == 'full':
+            """TODO(ejhumphrey): Implement full-convolution math."""
             raise NotImplementedError("Haven't implemented 'full' shape yet.")
 
         output_shape = (weight_shape[0], d0_out, d1_out)
@@ -288,9 +289,10 @@ class Conv3D(Node):
 
 
 class Likelihood(Affine):
-    """writeme. """
+    """TODO(ejhumphrey): write me."""
 
     def __init__(self, name, input_shape, n_out, act_type):
+        """TODO(ejhumphrey): write me."""
         Node.__init__(
             self,
             name=name,
@@ -299,7 +301,7 @@ class Likelihood(Affine):
             act_type=act_type)
         self.act_type = act_type
 
-        n_in = int(np.prod(input_shape))
+        n_in = int(np.prod(input_shape[1:]))
         weight_shape = [n_in, n_out]
 
         self.input = core.Port(
@@ -326,7 +328,7 @@ class Likelihood(Affine):
 
 
 class Conv2D(Node):
-    """ . """
+    """TODO(ejhumphrey): Implement me."""
 
     def __init__(self, layer_args):
         """
