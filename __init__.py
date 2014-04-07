@@ -1,6 +1,6 @@
 """
 """
 
-from . import network
-from . import data
-from . import examples
+from . network import *
+# from . import data
+# from . import examples

@@ -8,11 +8,13 @@ import theano.tensor as T
 FLOATX = theano.config.floatX
 
 TENSOR_TYPES = {None: T.scalar,
-                0: T.vector,
-                1: T.matrix,
-                2: T.tensor3,
-                3: T.tensor4}
+                1: T.vector,
+                2: T.matrix,
+                3: T.tensor3,
+                4: T.tensor4}
 
+# from . import core
+# from . import nodes
 from .core import Input
 from .core import Output
 from .nodes import Affine
@@ -21,7 +23,7 @@ from .nodes import Likelihood
 from .losses import NegativeLogLikelihood
 from .losses import L1Magnitude
 from .losses import L2Magnitude
-from .framework import Canvas
+# from .framework import Canvas
 from .framework import ConnectionManager
 from .framework import Graph
 
