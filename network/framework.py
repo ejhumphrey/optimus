@@ -1,9 +1,11 @@
 
 from . import core
+import numpy as np
 import theano.tensor as T
 
 
 def named_list(items):
+    """TODO(ejhumphrey): write me."""
     return dict([(obj.name, obj) for obj in items])
 
 
@@ -45,7 +47,7 @@ class Canvas(core.JObject):
 
 
 class ConnectionManager(core.JObject):
-    def __init__(self, edges=None):
+    def __init__(self, edges):
         """
         edges: list of Port tuples
         """
@@ -61,7 +63,7 @@ class ConnectionManager(core.JObject):
 
     @classmethod
     def __json_init__(cls, **kwargs):
-        manager = cls()
+        manager = cls(None)
         manager.connection_map = kwargs.get("connection_map")
         return manager
 
@@ -79,14 +81,14 @@ class ConnectionManager(core.JObject):
 
 class Graph(core.JObject):
     """writeme."""
-    def __init__(self, name, canvas, outputs, edges,
-                 loss_ports=None, update_param=None, constraints=None):
-        """writeme.
+    def __init__(self, name, inputs, nodes, edges, outputs,
+                 loss=None, update_param=None, constraints=None,
+                 chunk_size=250):
+        """writeme."""
+        if loss is None:
+            loss = 0
 
-        """
-        if loss_ports is None:
-            loss_ports = list()
-        self.canvas = canvas
+        self.chunk_size = chunk_size
         self.ports = {}
         self.inputs = dict()
         self.outputs = dict([(key, None) for key in outputs])
@@ -95,11 +97,10 @@ class Graph(core.JObject):
         self._fx = None
         self.connection_map = ConnectionManager(edges).connection_map
         self.__wire__()
-        # Configure losses
-        for lp in loss_ports:
-            self.loss += self.ports[lp.name].variable
 
         # Configure updates
+        if update_param:
+            self.chunk_size = None
         # Configure constraints
         self.__compile__()
 
@@ -166,23 +167,37 @@ class Graph(core.JObject):
 
     @classmethod
     def __json_init__(cls, inputs):
+        raise NotImplementedError("Haven't fixed this yet.")
         inputs = [core.Input(**args) for args in inputs]
         return cls(inputs)
 
     def __call__(self, **kwargs):
         """writeme"""
+        # Needs internal buffering strategy -- check if the value of each kwarg
+        # is an np.ndarray? if not, map it over all chunks. This should be a
+        # separate function though...
+        # if self.chunk_size is None and len(kwargs.values()[0]) >
         return self._fx(**kwargs)
 
 
-# class Driver(Struct):
-#     """writeme."""
-#     def __init__(self, nodes=None, graphs=None):
-#         """writeme."""
-#         self.nodes = Struct()
-#         if nodes is None:
-#             nodes = dict()
-#         if graphs is None:
-#             graphs = dict()
-#         for name,
-#         [(k, NodeFactory(v)) for k, v in nodes.items()])
-#         self.graphs = Struct([(k, Graph(**v)) for k, v in graphs.items()])
+def data_stepper(chunk_size=250, **kwargs):
+    """Generator to chunk unweildy inputs into smaller bites."""
+    constants = dict()
+    arrays = dict()
+    for key, value in kwargs:
+        if isinstance(value, np.ndarray):
+            arrays[key] = value
+        else:
+            constants[key] = value
+
+    if not arrays:
+        yield constants
+        raise StopIteration
+
+    num_chunks = int(np.ceil(len(arrays.values()[0]) / float(chunk_size)))
+    for n in range(num_chunks):
+        i0, i1 = n*chunk_size, (n+1)*chunk_size
+        array_chunk = dict([(key, value[i0:i1])
+                            for key, value in arrays.iteritems()])
+        array_chunk.update(constants)
+        yield array_chunk
