@@ -2,7 +2,7 @@
 from . import core
 # from . import json
 import numpy as np
-# import theano.tensor as T
+from theano.tensor import grad
 from collections import OrderedDict
 from theano import function
 
@@ -124,6 +124,12 @@ class Graph(core.JObject):
          x  Active inputs
          x  Params touched
          x  Active outputs
+
+        Then, after populating the necessary objects, compile the corresponding
+        theano function.
+
+        TODO(ejhumphrey): This method is rather big. Perhaps break it down into
+        smaller pieces?
         """
         # Collect all sources that are inputs.
         input_ports = dict()
@@ -169,19 +175,32 @@ class Graph(core.JObject):
                 break
         self.ports = input_ports
 
-        # Add all active losses to the total loss.
+        # Sum all active losses into the total loss.
         for loss in self._losses:
             if loss.cost.name in self.ports:
                 self.loss.variable += loss.cost.variable
-                print "now - loss: %s" % self.loss.variable
         self.ports[self.TOTAL_LOSS] = self.loss
 
+        # Map configured ports to the requested outputs.
         for port_name in self.outputs:
             if port_name in self.ports:
                 self.outputs[port_name] = self.ports[port_name]
 
-        if self.TOTAL_LOSS in self.outputs and len(self._losses):
-            assert self.outputs[self.TOTAL_LOSS]
+        # Make sure that the loss is actually set when requested as an output.
+        if not self.outputs.get(self.TOTAL_LOSS, True):
+            raise ValueError(
+                "Requesting '%s' as an output, but the value has "
+                "not been initialized." % self.TOTAL_LOSS)
+
+        # Define SGD update rules
+        # TODO(ejhumphrey): In the future, it would be super useful to at least
+        #   make it optional to use different update params for different node
+        #   parameters.
+        if self.loss.variable and self.update_param:
+            for param in self.params.values():
+                gparam = grad(self.loss.variable, param.variable)
+                gparam *= self.update_param.variable
+                self.updates[param.variable] = param.variable - gparam
 
         self._fx = function(
             inputs=[x.variable for x in self._inputs],

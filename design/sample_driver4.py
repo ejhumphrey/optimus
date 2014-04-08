@@ -81,31 +81,31 @@ loss_edges = transform_edges + [
 
 # Build the actual functions
 # - - - - - - - - - - - - - -
-# train = optimus.Graph(
-#     name='train',
-#     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
-#     nodes=[conv, affine, classifier],
-#     edges=loss_edges,
-#     outputs=['loss'],
-#     losses=[nll, conv_decay, affine_sparsity],
-#     constraints=[optimus.L2UnitNorm(conv.weights)],
-#     update_param=learning_rate)
-
-# Define other functions now for using outside the main driver.
-transform = optimus.Graph(
-    name='transform',
-    inputs=[input_data],
-    nodes=[conv, affine, classifier],
-    edges=transform_edges,
-    outputs=[classifier.output, affine.output])
-
-loss = optimus.Graph(
-    name='loss',
-    inputs=[input_data, class_labels, decay, sparsity],
+train = optimus.Graph(
+    name='train',
+    inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],
     edges=loss_edges,
-    outputs=[optimus.Graph.TOTAL_LOSS, conv.output, nll.cost, conv_decay.cost],
-    losses=[nll, conv_decay, affine_sparsity])
+    outputs=[optimus.Graph.TOTAL_LOSS],
+    losses=[nll, conv_decay, affine_sparsity],
+    # constraints=[optimus.L2UnitNorm(conv.weights)],
+    update_param=learning_rate)
+
+# Define other functions now for using outside the main driver.
+# transform = optimus.Graph(
+#     name='transform',
+#     inputs=[input_data],
+#     nodes=[conv, affine, classifier],
+#     edges=transform_edges,
+#     outputs=[classifier.output, affine.output])
+
+# loss = optimus.Graph(
+#     name='loss',
+#     inputs=[input_data, class_labels, decay, sparsity],
+#     nodes=[conv, affine, classifier],
+#     edges=loss_edges,
+#     outputs=[optimus.Graph.TOTAL_LOSS, conv.output, nll.cost, conv_decay.cost],
+#     losses=[nll, conv_decay, affine_sparsity])
 
 
 # --------------------
