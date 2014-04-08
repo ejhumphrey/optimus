@@ -168,15 +168,15 @@ class Graph(core.JObject):
 
         # Special Case
         if "loss" in self.outputs:
-            total_loss = 0.0
-            for loss in self._losses:
-                total_loss += loss.cost
-            self.outputs['loss'] = total_loss
+            total_loss = self._losses[0]
+            for loss in self._losses[1:]:
+                total_loss.cost.variable += loss.cost.variable
+            self.outputs['loss'] = total_loss.cost
 
     # def __compile__(self):
         self._fx = function(
             inputs=[x.variable for x in self._inputs],
-            outputs=[x.variable for x in self._outputs],
+            outputs=[x.variable for x in self.outputs.values()],
             updates=self.updates,
             allow_input_downcast=True)
 
@@ -192,7 +192,7 @@ class Graph(core.JObject):
         # is an np.ndarray? if not, map it over all chunks. This should be a
         # separate function though...
         # if self.chunk_size is None and len(kwargs.values()[0]) >
-        return self._fx(**kwargs)
+        return self._fx(*args, **kwargs)
 
 
 def data_stepper(chunk_size=250, **kwargs):
