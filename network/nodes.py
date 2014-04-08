@@ -209,7 +209,7 @@ class Conv3D(Node):
             """TODO(ejhumphrey): Implement full-convolution math."""
             raise NotImplementedError("Haven't implemented 'full' shape yet.")
 
-        output_shape = (weight_shape[0], d0_out, d1_out)
+        output_shape = (input_shape[0], weight_shape[0], d0_out, d1_out)
 
         self.input = core.Port(
             shape=input_shape,
@@ -307,7 +307,7 @@ class Likelihood(Affine):
         self.input = core.Port(
             shape=input_shape, name=self.__own__('input'))
         self.output = core.Port(
-            shape=[n_out], name=self.__own__('output'))
+            shape=[input_shape[0], n_out], name=self.__own__('output'))
         self.dropout = core.Port(
             shape=None, name=self.__own__('dropout'))
         self.weights = core.Parameter(
