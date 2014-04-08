@@ -48,3 +48,14 @@ Queue:
 - next():
     unpacks a batch of entities by the names; output entities need not be the
     same as those contained in the source?
+
+
+Buglist
+-------
+- Serialization and restoration
+- Instantiating multiple Graphs with the same nodes breaks some stuff pretty
+    hard right now.
+- Parameters are lacking a decent initialization strategy, and right now it's
+    deathly for the Likelihood layer
+- Also, rename the Likelihood layer to "Softmax", or let Affine take softmax
+    as an activation (and stop worrying about all this junk)
