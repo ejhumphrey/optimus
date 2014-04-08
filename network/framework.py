@@ -52,6 +52,8 @@ class Graph(core.JObject):
     Property attributes are named dictionaries, while the corresponding private
     variables are lists.
     """
+    TOTAL_LOSS = 'total_loss'
+
     def __init__(self, name, inputs, nodes, edges, outputs,
                  losses=None, update_param=None, constraints=None,
                  chunk_size=250):
@@ -65,6 +67,13 @@ class Graph(core.JObject):
             losses = list()
         self._losses = losses
 
+        self.loss = core.Port(name=self.TOTAL_LOSS)
+        self.loss.variable = 0.0
+        if self.TOTAL_LOSS in self._outputs and not self._losses:
+            raise ValueError(
+                "At least one Loss must be provided to 'losses' if the graph "
+                "is to compute '%s' as an output." % self.TOTAL_LOSS)
+
         self.chunk_size = chunk_size
         # Disable chunking for trainers.
         if update_param:
@@ -75,14 +84,13 @@ class Graph(core.JObject):
             constraints = list()
         self.constraints = constraints
 
-        self.ports = {}
-        self.params = dict()
+        self.ports = OrderedDict()
+        self.params = OrderedDict()
         self.updates = OrderedDict()
-        # Declare outputs
         self.outputs = OrderedDict()
         for port in outputs:
-            if port == 'loss':
-                self.outputs['loss'] = None
+            if port == self.TOTAL_LOSS:
+                self.outputs[self.TOTAL_LOSS] = None
             else:
                 self.outputs[port.name] = None
 
@@ -131,7 +139,6 @@ class Graph(core.JObject):
         for node in self.losses.values():
             input_ports.update(node.inputs)
         # ...and outputs.
-        # input_ports.update(self.outputs)
 
         local_map = self._connection_map.copy()
         # print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
@@ -160,20 +167,22 @@ class Graph(core.JObject):
                 print "Your logic is poor, but we can help."
                 print "\t%s" % local_map
                 break
-
         self.ports = input_ports
+
+        # Add all active losses to the total loss.
+        for loss in self._losses:
+            if loss.cost.name in self.ports:
+                self.loss.variable += loss.cost.variable
+                print "now - loss: %s" % self.loss.variable
+        self.ports[self.TOTAL_LOSS] = self.loss
+
         for port_name in self.outputs:
             if port_name in self.ports:
                 self.outputs[port_name] = self.ports[port_name]
 
-        # Special Case
-        if "loss" in self.outputs:
-            total_loss = self._losses[0]
-            for loss in self._losses[1:]:
-                total_loss.cost.variable += loss.cost.variable
-            self.outputs['loss'] = total_loss.cost
+        if self.TOTAL_LOSS in self.outputs and len(self._losses):
+            assert self.outputs[self.TOTAL_LOSS]
 
-    # def __compile__(self):
         self._fx = function(
             inputs=[x.variable for x in self._inputs],
             outputs=[x.variable for x in self.outputs.values()],

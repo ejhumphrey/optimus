@@ -33,14 +33,14 @@ learning_rate = optimus.Input(
 conv = optimus.Conv3D(
     name='conv',
     input_shape=input_data.shape,
-    weight_shape=(15, 9, 9),
+    weight_shape=(15, 1, 9, 9),
     pool_shape=(2, 2),
     act_type='relu')
 
 affine = optimus.Affine(
     name='affine',
     input_shape=conv.output.shape,
-    output_shape=(512,),
+    output_shape=(None, 512,),
     act_type='relu')
 
 classifier = optimus.Likelihood(
@@ -60,29 +60,16 @@ conv_decay = optimus.L2Magnitude(
 affine_sparsity = optimus.L1Magnitude(
     name="feature_sparsity")
 
-total_loss = optimus.Accumulator(
-    name="total_loss")
-
-# Outputs
-# - - - - - - -
-posterior = optimus.Output(
-    name='posterior')
-
-affine_out = optimus.Output(
-    name='features')
-
 # --------------------
 # 2. Define Graphs
 # --------------------
 # Define connection map as (from, to) tuples.
-# Note: These should all be Ports.
+# These should all be Ports; the ConnectionManager handles the abstraction
 # - - - - - - - - - - - - - - - - - - - - - -
 transform_edges = [
     (input_data, conv.input),
     (conv.output, affine.input),
-    (affine.output, classifier.input),
-    (affine.output, affine_out),
-    (classifier.output, posterior)]
+    (affine.output, classifier.input)]
 
 loss_edges = transform_edges + [
     (classifier.output, nll.likelihood),
@@ -90,23 +77,19 @@ loss_edges = transform_edges + [
     (conv.weights, conv_decay.input),
     (decay, conv_decay.weight),
     (affine.output, affine_sparsity.input),
-    (sparsity, affine_sparsity.weight),
-    (nll.cost, total_loss.input_list),
-    (conv_decay.cost, total_loss.input_list),
-    (affine_sparsity.cost, total_loss.input_list)]
+    (sparsity, affine_sparsity.weight)]
 
 # Build the actual functions
 # - - - - - - - - - - - - - -
-train = optimus.Graph(
-    name='train',
-    inputs=[input_data, class_labels, decay, sparsity, learning_rate],
-    nodes=[conv, affine, classifier,
-           nll, conv_decay, affine_sparsity, total_loss],
-    edges=loss_edges,
-    outputs=[total_loss.cost],
-    loss=total_loss.cost,
-    constraints=[optimus.L2UnitNorm(conv.weights)],
-    update_param=learning_rate)
+# train = optimus.Graph(
+#     name='train',
+#     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
+#     nodes=[conv, affine, classifier],
+#     edges=loss_edges,
+#     outputs=['loss'],
+#     losses=[nll, conv_decay, affine_sparsity],
+#     constraints=[optimus.L2UnitNorm(conv.weights)],
+#     update_param=learning_rate)
 
 # Define other functions now for using outside the main driver.
 transform = optimus.Graph(
@@ -114,15 +97,15 @@ transform = optimus.Graph(
     inputs=[input_data],
     nodes=[conv, affine, classifier],
     edges=transform_edges,
-    outputs=[posterior, affine_out])
+    outputs=[classifier.output, affine.output])
 
 loss = optimus.Graph(
     name='loss',
     inputs=[input_data, class_labels, decay, sparsity],
-    nodes=[conv, affine, classifier,
-           nll, conv_decay, affine_sparsity, total_loss],
+    nodes=[conv, affine, classifier],
     edges=loss_edges,
-    outputs=[total_loss.cost])
+    outputs=[optimus.Graph.TOTAL_LOSS, conv.output, nll.cost, conv_decay.cost],
+    losses=[nll, conv_decay, affine_sparsity])
 
 
 # --------------------
