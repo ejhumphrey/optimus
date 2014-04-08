@@ -79,7 +79,7 @@ def unpack_entities(entities):
     return arrays
 
 
-class BatchQueue(object):
+class Queue(object):
     """
     Note: Could potentially take a list of Feature (field) names, which may be
     a subset of the fields in an entity.

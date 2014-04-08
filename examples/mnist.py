@@ -43,7 +43,7 @@ def load_mnist(filename):
         dataset = dict()
         for image, label in zip(dpoints[0], dpoints[1]):
             key = "%05d" % len(dataset)
-            dataset[key] = Digit(image.reshape(28, 28), label)
+            dataset[key] = Digit(image.reshape(1, 28, 28), label)
         dsets.append(dataset)
 
     return dsets

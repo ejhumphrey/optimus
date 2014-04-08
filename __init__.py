@@ -2,5 +2,5 @@
 """
 
 from . network import *
-# from . import data
+from . data import *
 # from . import examples

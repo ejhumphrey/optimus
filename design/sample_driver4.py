@@ -1,6 +1,7 @@
 """write meeee
 """
 import optimus
+from optimus.examples.mnist import load_mnist
 
 # --------------------
 # 1. Create Components
@@ -111,20 +112,20 @@ train = optimus.Graph(
 # --------------------
 # 3. Create Data
 # --------------------
-dset = optimus.File("/Users/ejhumphrey/Desktop/mnist_train.hdf5")
+dset = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")[0]
 source = optimus.Queue(dset, batch_size=50, refresh_prob=0)
 
-driver = optimus.Driver(
-    name="mnist_training",
-    graph=train,
-    output_directory="/Volumes/megatron/optimus/",
-    log_file="trainer.log")
+# driver = optimus.Driver(
+#     name="mnist_training",
+#     graph=train,
+#     output_directory="/Volumes/megatron/optimus/",
+#     log_file="trainer.log")
 
-hyperparams = {learning_rate.name: 0.01,
-               sparsity.name: 0.01,
-               decay.name: 0.01}
+# hyperparams = {learning_rate.name: 0.01,
+#                sparsity.name: 0.01,
+#                decay.name: 0.01}
 
-driver.fit(source, hyperparams=hyperparams, max_iter=5000, save_freq=100)
+# driver.fit(source, hyperparams=hyperparams, max_iter=5000, save_freq=100)
 
-optimus.save(transform, "/Volumes/megatron/optimus/")
-optimus.save(loss, "/Volumes/megatron/optimus/")
+# optimus.save(transform, "/Volumes/megatron/optimus/")
+# optimus.save(loss, "/Volumes/megatron/optimus/")
