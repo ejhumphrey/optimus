@@ -5,6 +5,7 @@ import numpy as np
 from theano.tensor import grad
 from collections import OrderedDict
 from theano import function
+import time
 
 
 def named_list(items):
@@ -244,3 +245,28 @@ def data_stepper(chunk_size=250, **kwargs):
                             for key, value in arrays.iteritems()])
         array_chunk.update(constants)
         yield array_chunk
+
+
+class Driver(object):
+    def __init__(self, name, graph, output_directory, log_file):
+        self.name = name
+        self.graph = graph
+        self.output_directory = output_directory
+        self.log_file = log_file
+
+    def fit(self, source, hyperparams, max_iter=10000, save_freq=100):
+        try:
+            for n, kwargs in enumerate(source):
+                kwargs.update(**hyperparams)
+                outputs = self.graph(**kwargs)
+                if (n % save_freq) == 0:
+                    self.save(n)
+                    print "[%s] %d / %d: %0.4f" % (time.asctime(),
+                                                   n,
+                                                   max_iter,
+                                                   outputs[0])
+        except KeyboardInterrupt:
+            print "Stopping early after %d iterations" % n
+
+    def save(self, iter_count=None):
+        pass

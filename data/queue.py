@@ -145,3 +145,6 @@ class Queue(object):
                 item = fx(item)
             item_buffer.append(item)
         return self._serializer(item_buffer)
+
+    def __iter__(self):
+        return self

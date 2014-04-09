@@ -2,6 +2,7 @@
 """
 import optimus
 from optimus.examples.mnist import load_mnist
+import numpy as np
 
 # --------------------
 # 1. Create Components
@@ -105,9 +106,12 @@ train = optimus.Graph(
 #     inputs=[input_data, class_labels, decay, sparsity],
 #     nodes=[conv, affine, classifier],
 #     edges=loss_edges,
-#     outputs=[optimus.Graph.TOTAL_LOSS, conv.output, nll.cost, conv_decay.cost],
+#     outputs=[optimus.Graph.TOTAL_LOSS,
+#              conv.output, nll.cost, conv_decay.cost],
 #     losses=[nll, conv_decay, affine_sparsity])
 
+classifier.weights.value = np.random.normal(
+    0, 0.25, size=classifier.weights.shape)
 
 # --------------------
 # 3. Create Data
@@ -115,17 +119,17 @@ train = optimus.Graph(
 dset = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")[0]
 source = optimus.Queue(dset, batch_size=50, refresh_prob=0)
 
-# driver = optimus.Driver(
-#     name="mnist_training",
-#     graph=train,
-#     output_directory="/Volumes/megatron/optimus/",
-#     log_file="trainer.log")
+driver = optimus.Driver(
+    name="mnist_training",
+    graph=train,
+    output_directory="/Volumes/megatron/optimus/",
+    log_file="trainer.log")
 
-# hyperparams = {learning_rate.name: 0.01,
-#                sparsity.name: 0.01,
-#                decay.name: 0.01}
+hyperparams = {learning_rate.name: 0.02,
+               sparsity.name: 0.001,
+               decay.name: 0.1}
 
-# driver.fit(source, hyperparams=hyperparams, max_iter=5000, save_freq=100)
+driver.fit(source, hyperparams=hyperparams, max_iter=5000, save_freq=25)
 
 # optimus.save(transform, "/Volumes/megatron/optimus/")
 # optimus.save(loss, "/Volumes/megatron/optimus/")
