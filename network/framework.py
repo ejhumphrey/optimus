@@ -5,6 +5,7 @@ from collections import OrderedDict
 from theano import function
 import time
 
+from . import json
 from .core import JObject
 from .core import Port
 
@@ -125,6 +126,15 @@ class Graph(JObject):
     def losses(self):
         return named_list(self._losses)
 
+    @property
+    def param_values(self):
+        return dict([(k, self.params[k].value) for k in self.params])
+
+    @param_values.setter
+    def param_values(self, values):
+        for k in values.keys():
+            self.params[k].value = values[k]
+
     def __wire__(self):
         """Walk inputs to outputs via connection map, collecting
          x  Active inputs
@@ -215,12 +225,6 @@ class Graph(JObject):
             updates=self.updates,
             allow_input_downcast=True)
 
-    # @classmethod
-    # def __json_init__(cls, pyobj):
-    #     raise NotImplementedError("Haven't fixed this yet.")
-    #     inputs = [Input(**args) for args in inputs]
-    #     return cls(inputs)
-
     def __call__(self, *args, **kwargs):
         """writeme"""
         # Needs internal buffering strategy -- check if the value of each kwarg
@@ -228,6 +232,42 @@ class Graph(JObject):
         # separate function though...
         # if self.chunk_size is None and len(kwargs.values()[0]) > ...?
         return self._fx(*args, **kwargs)
+
+    def save_param_values(self, filename):
+        """Serialize the graph's parameter values to disk.
+
+        Parameters
+        ----------
+        filename: str
+            Path on disk to save the parameter values.
+        """
+        np.savez(filename, **self.param_values)
+
+    def load_param_values(self, filename):
+        """Load a set of parameter values from disk.
+
+        Parameters
+        ----------
+        filename: str
+            Path on disk of parameter values to load.
+        """
+        self.param_values = np.load(filename)
+
+
+def save(graph, def_file, param_file=None):
+    """Save a graph to disk."""
+    if param_file:
+        graph.save_param_values(param_file)
+    with open(def_file, "w") as fp:
+        json.dump(graph, fp, indent=2)
+
+
+def load(def_file, param_file=None):
+    """Load a graph and corresponding parameter values from disk."""
+    graph = json.load(open(def_file))
+    if param_file:
+        graph.load_param_values(param_file)
+    return graph
 
 
 def data_stepper(chunk_size=250, **kwargs):

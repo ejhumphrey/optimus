@@ -31,6 +31,8 @@ from .losses import L2Magnitude
 from .framework import ConnectionManager
 from .framework import Graph
 from .framework import Driver
+from .framework import save
+from .framework import load
 
 
 def __jsonSupport__():
