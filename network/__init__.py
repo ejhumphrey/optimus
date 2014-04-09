@@ -17,12 +17,17 @@ TENSOR_TYPES = {None: T.scalar,
 # from . import nodes
 from .core import Input
 from .core import Output
+from .core import Parameter
+from .core import Port
+
 from .nodes import Affine
 from .nodes import Conv3D
 from .nodes import Likelihood
+
 from .losses import NegativeLogLikelihood
 from .losses import L1Magnitude
 from .losses import L2Magnitude
+
 from .framework import ConnectionManager
 from .framework import Graph
 from .framework import Driver

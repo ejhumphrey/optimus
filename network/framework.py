@@ -1,11 +1,12 @@
 
-from . import core
-# from . import json
 import numpy as np
 from theano.tensor import grad
 from collections import OrderedDict
 from theano import function
 import time
+
+from .core import JObject
+from .core import Port
 
 
 def named_list(items):
@@ -13,7 +14,7 @@ def named_list(items):
     return OrderedDict([(obj.name, obj) for obj in items])
 
 
-class ConnectionManager(core.JObject):
+class ConnectionManager(object):
     """TODO(ejhumphrey): write me."""
     def __init__(self, edges):
         """
@@ -21,33 +22,34 @@ class ConnectionManager(core.JObject):
         """
         if edges is None:
             edges = list()
-        self.connection_map = dict()
+        self._connection_map = dict()
         for source, sink in edges:
             self.add_edge(source, sink)
-
-    @property
-    def __json__(self):
-        return dict(connection_map=self.connection_map, type=self.type)
-
-    @classmethod
-    def __json_init__(cls, **kwargs):
-        manager = cls(None)
-        manager.connection_map = kwargs.get("connection_map")
-        return manager
 
     def add_edge(self, source, sink):
         """
         source: Port
-            Symbolic data source (from)
+            Data source (from)
         sink: Port
-            Symbolic data sink (to)
+            Data sink (to)
         """
-        if not source.name in self.connection_map:
-            self.connection_map[source.name] = list()
-        self.connection_map[source.name].append(sink.name)
+        if not source.name in self._connection_map:
+            self._connection_map[source.name] = list()
+        self._connection_map[source.name].append(sink.name)
+
+    @property
+    def connections(self):
+        return self._connection_map.copy()
+
+    @property
+    def edges(self):
+        edges = []
+        for source, sinks in self.connections.items():
+            edges.extend([(source, sink) for sink in sinks])
+        return edges
 
 
-class Graph(core.JObject):
+class Graph(JObject):
     """Graph Implementation
 
     Property attributes are named dictionaries, while the corresponding private
@@ -55,20 +57,21 @@ class Graph(core.JObject):
     """
     TOTAL_LOSS = 'total_loss'
 
-    def __init__(self, name, inputs, nodes, edges, outputs,
+    def __init__(self, name, inputs, nodes, connections, outputs,
                  losses=None, update_param=None, constraints=None,
                  chunk_size=250):
         """writeme."""
 
+        self.name = name
         self._inputs = inputs
         self._nodes = nodes
-        self._connection_map = ConnectionManager(edges).connection_map
+        self._connections = connections
         self._outputs = outputs
         if losses is None:
             losses = list()
         self._losses = losses
 
-        self.loss = core.Port(name=self.TOTAL_LOSS)
+        self.loss = Port(name=self.TOTAL_LOSS)
         self.loss.variable = 0.0
         if self.TOTAL_LOSS in self._outputs and not self._losses:
             raise ValueError(
@@ -101,11 +104,13 @@ class Graph(core.JObject):
     @property
     def __json__(self):
         return dict(
+            name=self.name,
             inputs=self._inputs,
             nodes=self._nodes,
-            connection_map=self._connection_map,
+            connections=self._connections,
             outputs=self._outputs,
             losses=self._losses,
+            update_param=self.update_param,
             type=self.type)
 
     @property
@@ -134,7 +139,7 @@ class Graph(core.JObject):
         """
         # Collect all sources that are inputs.
         input_ports = dict()
-        for source_name in self._connection_map:
+        for source_name in self._connections:
             source = self.inputs.get(source_name, None)
             if source:
                 input_ports[source_name] = source
@@ -147,7 +152,7 @@ class Graph(core.JObject):
             input_ports.update(node.inputs)
         # ...and outputs.
 
-        local_map = self._connection_map.copy()
+        local_map = self._connections.copy()
         # print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
         # print "Local Connection Map: \n%s" % json.dumps(local_map, indent=2)
         modules = self.nodes.values() + self.losses.values()
@@ -197,10 +202,11 @@ class Graph(core.JObject):
         # TODO(ejhumphrey): In the future, it would be super useful to at least
         #   make it optional to use different update params for different node
         #   parameters.
-        if self.loss.variable and self.update_param:
+        eta = self.inputs.get(self.update_param, None)
+        if self.loss.variable and eta:
             for param in self.params.values():
                 gparam = grad(self.loss.variable, param.variable)
-                gparam *= self.update_param.variable
+                gparam *= eta.variable
                 self.updates[param.variable] = param.variable - gparam
 
         self._fx = function(
@@ -209,18 +215,18 @@ class Graph(core.JObject):
             updates=self.updates,
             allow_input_downcast=True)
 
-    @classmethod
-    def __json_init__(cls, inputs):
-        raise NotImplementedError("Haven't fixed this yet.")
-        inputs = [core.Input(**args) for args in inputs]
-        return cls(inputs)
+    # @classmethod
+    # def __json_init__(cls, pyobj):
+    #     raise NotImplementedError("Haven't fixed this yet.")
+    #     inputs = [Input(**args) for args in inputs]
+    #     return cls(inputs)
 
     def __call__(self, *args, **kwargs):
         """writeme"""
         # Needs internal buffering strategy -- check if the value of each kwarg
         # is an np.ndarray? if not, map it over all chunks. This should be a
         # separate function though...
-        # if self.chunk_size is None and len(kwargs.values()[0]) >
+        # if self.chunk_size is None and len(kwargs.values()[0]) > ...?
         return self._fx(*args, **kwargs)
 
 

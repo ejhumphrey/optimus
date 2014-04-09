@@ -22,7 +22,8 @@ class JObject(object):
 
     @property
     def __json__(self):
-        raise NotImplementedError("Missing a JSON serialization property.")
+        raise NotImplementedError(
+            "<%s>: Missing a JSON serialization property." % self.type)
 
     def __repr__(self):
         """Render the object as an unambiguous string."""

@@ -1,9 +1,11 @@
 """Demonstrating how to use Optimus with the MNIST dataset.
 """
 
+import cPickle
+from matplotlib.pyplot import figure
+import numpy as np
 from optimus.data import Entity
 from optimus.data import Feature
-import cPickle
 
 
 class Digit(Entity):
@@ -47,3 +49,14 @@ def load_mnist(filename):
         dsets.append(dataset)
 
     return dsets
+
+
+def draw_image_posterior(image, posterior):
+    """Draw an image and its corresponding posterior"""
+    fig = figure(figsize=(10, 4))
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122)
+    ax1.imshow(image.reshape(28, 28), interpolation='nearest', aspect='equal')
+    ax2.bar(range(10), posterior, width=0.95)
+    ax2.set_xticks(np.arange(10) + 0.5)
+    ax2.set_xticklabels(range(10))

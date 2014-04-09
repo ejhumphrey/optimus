@@ -55,8 +55,8 @@ conv_decay = optimus.L2Magnitude(
 affine_sparsity = optimus.L1Magnitude(
     name="feature_sparsity")
 
-# 2. Define Graphs
-edges = [
+# 2. Define Edges
+connector = optimus.ConnectionManager([
     (input_data, conv.input),
     (conv.output, affine.input),
     (affine.output, classifier.input),
@@ -65,16 +65,16 @@ edges = [
     (conv.weights, conv_decay.input),
     (decay, conv_decay.weight),
     (affine.output, affine_sparsity.input),
-    (sparsity, affine_sparsity.weight)]
+    (sparsity, affine_sparsity.weight)])
 
 train = optimus.Graph(
     name='train',
     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],
-    edges=edges,
-    outputs=[optimus.Graph.TOTAL_LOSS],
+    connections=connector.connections,
+    outputs=[optimus.Graph.TOTAL_LOSS, classifier.output],
     losses=[nll, conv_decay, affine_sparsity],
-    update_param=learning_rate)
+    update_param=learning_rate.name)
 
 classifier.weights.value = np.random.normal(
     0, 0.25, size=classifier.weights.shape)
