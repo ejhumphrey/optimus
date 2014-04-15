@@ -43,6 +43,12 @@ def __jsonSupport__():
 
     def decode(obj):
         """writeme."""
+        # TODO(ejhumphrey): Consider filtering on underscores OR reserved word.
+        # filt_obj = dict()
+        # for k in obj:
+        #     if k.startswith("_"):
+        #         continue
+        #     filt_obj[k] = obj[k]
         if 'type' in obj:
             return eval(obj.pop('type')).__json_init__(**obj)
         return obj

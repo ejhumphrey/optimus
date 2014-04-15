@@ -4,6 +4,7 @@ from theano.tensor import grad
 from collections import OrderedDict
 from theano import function
 import time
+import os
 
 from . import json
 from .core import JObject
@@ -294,25 +295,42 @@ def data_stepper(chunk_size=250, **kwargs):
 
 
 class Driver(object):
-    def __init__(self, name, graph, output_directory, log_file):
-        self.name = name
+    """
+    """
+    def __init__(self, graph, unique_name, output_directory, log_file='',
+                 init_param_file=None):
         self.graph = graph
+        if init_param_file:
+            self.graph.load_param_values(init_param_file)
+        output_directory = os.path.join(
+            output_directory, graph.name, unique_name)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
         self.output_directory = output_directory
-        self.log_file = log_file
+        self.unique_name = unique_name
+        self._file_base = "%s-%s" % (graph.name, unique_name)
+        def_file = os.path.join(self.output_directory,
+                                "%s.json" % self._file_base)
+        save(self.graph, def_file)
+        self._train_stats = []
 
     def fit(self, source, hyperparams, max_iter=10000, save_freq=100):
+        param_file_fmt = "%%s-%%0%dd.npz" % np.ceil(np.log10(max_iter))
         try:
-            for n, kwargs in enumerate(source):
+            for n_iter, kwargs in enumerate(source):
                 kwargs.update(**hyperparams)
                 outputs = self.graph(**kwargs)
-                if (n % save_freq) == 0:
-                    self.save(n)
+                if (n_iter % save_freq) == 0:
+                    param_file = os.path.join(
+                        self.output_directory,
+                        param_file_fmt % (self._file_base, n_iter))
+                    self.graph.save_param_values(param_file)
                     print "[%s] %d / %d: %0.4f" % (time.asctime(),
-                                                   n,
+                                                   n_iter,
                                                    max_iter,
                                                    outputs[0])
         except KeyboardInterrupt:
-            print "Stopping early after %d iterations" % n
+            print "Stopping early after %d iterations" % n_iter
 
-    def save(self, iter_count=None):
+    def __del__(self):
         pass
