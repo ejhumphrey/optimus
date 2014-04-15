@@ -68,7 +68,7 @@ connector = optimus.ConnectionManager([
     (sparsity, affine_sparsity.weight)])
 
 train = optimus.Graph(
-    name='train',
+    name='mnist_3layer',
     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],
     connections=connector.connections,
@@ -76,18 +76,18 @@ train = optimus.Graph(
     losses=[nll, conv_decay, affine_sparsity],
     update_param=learning_rate.name)
 
-classifier.weights.value = np.random.normal(
-    0, 0.25, size=classifier.weights.shape)
+# classifier.weights.value = np.random.normal(
+#     0, 0.25, size=classifier.weights.shape)
 
 # 3. Create Data
 dset = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")[0]
-source = optimus.Queue(dset, batch_size=50, refresh_prob=0)
+source = optimus.Queue(dset, batch_size=50, refresh_prob=0.0, cache_size=5000)
 
 driver = optimus.Driver(
-    name="mnist_training",
     graph=train,
+    unique_name="dev_000",
     output_directory="/Volumes/megatron/optimus/",
-    log_file="trainer.log")
+    init_param_file="/Volumes/megatron/optimus/mnist_3layer/init_params.npz")
 
 hyperparams = {learning_rate.name: 0.02,
                sparsity.name: 0.001,

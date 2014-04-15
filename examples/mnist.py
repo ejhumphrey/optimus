@@ -17,16 +17,6 @@ class Digit(Entity):
                         label=Feature(value=label))
 
 
-class InputDigit(Entity):
-    """Define the features for an handwritten digit."""
-    def __init__(self, name, image, label):
-        """writeme"""
-        Entity.__init__(self,
-                        name=name,
-                        image=Feature(value=image),
-                        label=Feature(value=label))
-
-
 def load_mnist(filename):
     """Load the MNIST dataset into Digit dictionaries.
 
