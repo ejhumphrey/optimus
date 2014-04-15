@@ -3,11 +3,9 @@
 
 import h5py
 from collections import OrderedDict
-import numpy as np
 
 from . import core
 from . import keyutils
-from . import selectors
 
 
 class File(h5py.File):
@@ -28,6 +26,11 @@ class File(h5py.File):
         addrs = list(h5py.File.get(self, self.__ADDR__, []))
         self._key_map = OrderedDict([(k, a) for k, a in zip(keys, addrs)])
         self._agu = keyutils.uniform_hexgen(self.__DEPTH__, self.__WIDTH__)
+
+    def __del__(self):
+        """Safe default destructor"""
+        if self.fid.valid:
+            self.close()
 
     def close(self):
         """write keys and paths to disk"""
