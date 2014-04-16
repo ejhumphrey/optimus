@@ -1,13 +1,12 @@
-"""
+"""Core Data Objects
 
-Data Objects:
 
-The top-level object is an Entity, which consists of named Features. For
-example, and Entity might correspond to some observation, and has three
-Features; chroma, mfccs, and label. Each of these features will have a 'value'
-field, to access the numerical representation contained therein.
+The main object is an Entity, which consists of named Fields. For
+example, an Entity might correspond to some observation, and has three
+Fields; chroma, mfccs, and label. Each of these Fields will have a 'value',
+which returns the data (scalar, string, list, or array).
 
-The goal of entities / features is to provide a seamless de/serialization
+The goal of Entities / Fields is to provide a seamless de/serialization
 data structure for scaling well with potentially massive datasets.
 """
 
@@ -25,11 +24,12 @@ class Entity(object):
     >>> x['a'].value == x.b.value
     False
 
+    See tests/test_data.py for more examples.
     """
     def __init__(self, **kwargs):
         object.__init__(self)
         for key, value in kwargs.iteritems():
-            self.add(key, Feature(value))
+            self[key] = value
 
     def __repr__(self):
         """Render the object as an unambiguous string."""
@@ -39,18 +39,17 @@ class Entity(object):
         """writeme."""
         return self.__dict__.keys()
 
-    def add(self, key, value):
-        """TODO(ejhumphrey): Why this instead of __setitem__? Is it an h5py
-        consistency thing?
+    def __setitem__(self, key, value):
+        """Set value for key.
 
         Parameters
         ----------
         key: str
-            Attribute name, must be valid python syntax.
-        value: Feature
-            Feature corresponding to the given key.
+            Attribute name, must be valid python attribute syntax.
+        value: scalar, string, list, or np.ndarray
+            Data corresponding to the given key.
         """
-        self.__dict__[key] = value
+        self.__dict__[key] = Field(value)
 
     def __getitem__(self, key):
         """writeme."""
@@ -64,12 +63,15 @@ class Entity(object):
         """writeme."""
         new_grp = cls()
         for key in group:
-            new_grp.add(key, _LazyFeature(group[key]))
+            new_grp.__dict__[key] = _LazyField(group[key])
         return new_grp
 
 
-class Feature(object):
-    """Wrapper around array data for optimus."""
+class Field(object):
+    """Data wrapper.
+
+    You should seldom, if ever, need to create Fields explicitly.
+    """
     def __init__(self, value, attrs=None):
         """writeme."""
         self.value = np.asarray(value)
@@ -80,14 +82,14 @@ class Feature(object):
     @classmethod
     def from_hdf5_dataset(cls, hdf5_dataset):
         """This might be poor practice."""
-        return _LazyFeature(hdf5_dataset)
+        return _LazyField(hdf5_dataset)
 
 
-class _LazyFeature(object):
-    """Lazy-loading Feature for reading data from HDF5 files.
+class _LazyField(object):
+    """Lazy-loading Field for reading data from HDF5 files.
 
     Note: Do not use directly. This class provides a common interface with
-    Features, but only returns information as needed, wrapping h5py types."""
+    Fields, but only returns information as needed, wrapping h5py types."""
     def __init__(self, hdf5_dataset):
         self._dataset = hdf5_dataset
         self._value = None

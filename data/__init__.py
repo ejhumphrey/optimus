@@ -1,5 +1,5 @@
 from .core import Entity
-from .core import Feature
+from .core import Field
 
 from .sources import File
 
