@@ -3,22 +3,22 @@
 import numpy as np
 
 
-def ordered_items(obj):
-    """writeme"""
+def iteritems(obj):
+    """Iteritem generator."""
     for key in obj.keys():
         yield key, obj.get(key)
 
 
-def sorted_items(obj):
-    """writeme"""
+def sorted_iteritems(obj):
+    """Like iteritems, but keys are sorted first."""
     keys = obj.keys()
     keys.sort()
     for key in keys:
         yield key, obj.get(key)
 
 
-def permute_items(obj):
-    """Infinite permutation"""
+def permuted_iteritems(obj):
+    """Like iteritems, but a permutation of the items. Loops forever."""
     keys = obj.keys()
     order = np.arange(len(keys))
     np.random.shuffle(order)

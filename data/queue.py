@@ -12,7 +12,7 @@ class LocalCache(object):
         """writeme."""
 
         if selector is None:
-            selector = selectors.permute_items
+            selector = selectors.permuted_iteritems
         self._selector = selector
 
         self._data = dict()
@@ -81,8 +81,9 @@ def unpack_entities(entities):
 
 class Queue(object):
     """
-    Note: Could potentially take a list of Feature (field) names, which may be
+    Note: Could potentially take a list of Field names, which may be
     a subset of the fields in an entity.
+
     Alternatively, it'd be just as easy to introduce a Transformer that deletes
     or manages such fields (and then the unpack method never needs to change).
 
@@ -112,7 +113,7 @@ class Queue(object):
 
         # If None, create default selector
         if selector is None:
-            selector = selectors.permute_items
+            selector = selectors.permuted_iteritems
         self._selector = selector(self._source)
 
         if serializer is None:
