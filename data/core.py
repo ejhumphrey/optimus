@@ -4,19 +4,32 @@ Data Objects:
 
 The top-level object is an Entity, which consists of named Features. For
 example, and Entity might correspond to some observation, and has three
-Features; chroma, mfccs, and label.
+Features; chroma, mfccs, and label. Each of these features will have a 'value'
+field, to access the numerical representation contained therein.
 
 The goal of entities / features is to provide a seamless de/serialization
 data structure for scaling well with potentially massive datasets.
 """
 
+import numpy as np
+
 
 class Entity(object):
-    """writeme."""
+    """Struct-like object for getting named fields into and out of Files.
+
+    Much like a native Python dictionary, the keyword arguments of an Entity
+    will become keys of the object. Additionally, and more importantly, these
+    keys are also named attributes:
+
+    >>> x = Entity(a=3, b=5)
+    >>> x['a'].value == x.b.value
+    False
+
+    """
     def __init__(self, **kwargs):
         object.__init__(self)
         for key, value in kwargs.iteritems():
-            self.add(key, value)
+            self.add(key, Feature(value))
 
     def __repr__(self):
         """Render the object as an unambiguous string."""
@@ -56,13 +69,10 @@ class Entity(object):
 
 
 class Feature(object):
-    """writeme.
-    metadata: similar thoughts, but potentially more important.
-    """
+    """Wrapper around array data for optimus."""
     def __init__(self, value, attrs=None):
         """writeme."""
-
-        self.value = value
+        self.value = np.asarray(value)
         if attrs is None:
             attrs = dict()
         self.attrs = attrs
