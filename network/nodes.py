@@ -37,6 +37,7 @@ class Node(core.JObject):
 
     def reset(self):
         """TODO(ejhumphrey): write me."""
+        # TODO(ejhumphrey): This call doesn't seem to be propagating.
         for p in self.inputs.values():
             p.reset()
         for p in self.outputs.values():
@@ -186,16 +187,18 @@ class Conv3D(Node):
             act_type=act_type)
 
         # Make sure the weight_shape argument is formatted properly.
-        w = list(weight_shape)
-        if len(w) == 3:
-            w.insert(1, input_shape[1])
-        elif len(w) == 4:
-            assert w[1] == input_shape[1], \
+        w_shp = list(weight_shape)
+        if len(w_shp) == 3:
+            w_shp.insert(1, input_shape[1])
+        elif len(w_shp) == 4 and w_shp[1] is None:
+            w_shp[1] = input_shape[1]
+        elif len(w_shp) == 4:
+            assert w_shp[1] == input_shape[1], \
                 "weight_shape[1] must align with input_shape[1]: " \
-                "%d!=%d." % (w[1], input_shape[1])
+                "%d!=%d." % (w_shp[1], input_shape[1])
         else:
             raise ValueError("'weight_shape' must be length 3 or 4.")
-        weight_shape = tuple(w)
+        weight_shape = tuple(w_shp)
 
         d0_in, d1_in = input_shape[-2:]
         if border_mode == 'valid':
@@ -288,7 +291,7 @@ class Conv3D(Node):
         self.output.variable = output
 
 
-class Likelihood(Affine):
+class Softmax(Affine):
     """TODO(ejhumphrey): write me."""
 
     def __init__(self, name, input_shape, n_out, act_type):
@@ -325,6 +328,67 @@ class Likelihood(Affine):
             "Softmax nodes do not currently support dropout."
         Affine.transform(self)
         self.output.variable = T.nnet.softmax(self.output.variable)
+
+
+class MultiSoftmax(Node):
+    """Multi-Dimensional Softamx Layer"""
+    def __init__(self, name, input_shape, output_shape, act_type):
+        assert len(output_shape) == 3
+        Node.__init__(
+            self,
+            name=name,
+            input_shape=input_shape,
+            output_shape=output_shape,
+            act_type=act_type)
+        self.act_type = act_type
+
+        n_in = int(np.prod(input_shape[1:]))
+        weight_shape = [output_shape[1], n_in, output_shape[2]]
+
+        self.input = core.Port(
+            shape=input_shape, name=self.__own__('input'))
+        self.output = core.Port(
+            shape=output_shape, name=self.__own__('output'))
+        self.dropout = core.Port(
+            shape=None, name=self.__own__('dropout'))
+        self.weights = core.Parameter(
+            shape=weight_shape, name=self.__own__('weights'))
+        self.bias = core.Parameter(
+            shape=output_shape[1:], name=self.__own__('bias'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
+        # i.e. dropout yes/no?
+        return {self.input.name: self.input}
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        # Filter based on what is set / active?
+        return {self.weights.name: self.weights,
+                self.bias.name: self.bias}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        weights = self.weights.variable
+        bias = self.bias.variable
+        x_in = T.flatten(self.input.variable, outdim=2)
+        outputs = []
+        for i in xrange(self.output.shape[1]):
+            z_i = self.activation(
+                T.dot(x_in, weights[i]) + bias[i].dimshuffle('x', 0))
+            outputs.append(T.nnet.softmax(z_i).dimshuffle(0, 'x', 1))
+
+        self.output.variable = T.concatenate(outputs, axis=1)
 
 
 class Conv2D(Node):
@@ -438,7 +502,3 @@ class LpDistance(Node):
         z_out = T.pow(T.pow(T.abs_(xA - xB), p).sum(axis=1), 1.0 / p)
         z_out.name = self.outputs[0]
         return {z_out.name: z_out}
-
-
-class LpPenalty(Node):
-    pass

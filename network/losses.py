@@ -117,6 +117,31 @@ class NegativeLogLikelihood(Loss):
         self.cost.variable = T.mean(self.loss.variable)
 
 
+class MultiNegativeLogLikelihood(NegativeLogLikelihood):
+    """writeme"""
+    def __init__(self, name, n_dim):
+        # Input Validation
+        NegativeLogLikelihood.__init__(self, name=name)
+        self.__args__.update(n_dim=n_dim)
+        self.n_dim = n_dim
+
+    def transform(self):
+        """writeme"""
+        assert self.likelihood.variable, "Port error: 'likelihood' not set."
+        likelihood = self.likelihood.variable
+        assert self.target_idx.variable, "Port error: 'target_idx' not set."
+        target_idx = self.target_idx.variable
+        # Create the local givens.
+        batch_idx = T.arange(target_idx.shape[0], dtype='int32')
+        losses = []
+        for i in xrange(self.n_dim):
+            loss_idx = likelihood[batch_idx, i, target_idx[batch_idx, i]]
+            losses.append(loss_idx.dimshuffle(0, 'x'))
+
+        self.loss.variable = -T.log(T.concatenate(losses, axis=1))
+        self.cost.variable = T.mean(self.loss.variable)
+
+
 class ContrastiveDivergence(Loss):
     _DISTANCE = 'distance'
     _SCORE = 'score'

@@ -16,6 +16,10 @@ def named_list(items):
     return OrderedDict([(obj.name, obj) for obj in items])
 
 
+def random_init(param, mean=0.0, std=0.025):
+    param.value = np.random.normal(mean, std, size=param.shape)
+
+
 class ConnectionManager(object):
     """TODO(ejhumphrey): write me."""
     def __init__(self, edges):
