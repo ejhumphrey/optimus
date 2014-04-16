@@ -212,50 +212,30 @@ class L2Magnitude(L1Magnitude):
         self.cost.variable = var_magnitude * self.weight.variable
 
 
-# def mean_squared_error(name, inputs):
-#     """
-#     Returns
-#     -------
-#     scalar_loss : symbolic scalar
-#         Cost of this penalty
-#     inputs : dict
-#         Dictionary of full param names and symbolic parameters.
-#     """
-#     INPUT_KEY = 'prediction'
-#     assert INPUT_KEY in inputs, \
-#         "Function expected a key named '%s' in 'inputs'." % INPUT_KEY
-#     target = T.matrix(name=urls.append_param(name, 'target'))
-#     raise NotImplementedError("Haven't finished this yet.")
+class MeanSquaredError(Loss):
+    """writeme"""
+    def __init__(self, name):
+        # Input Validation
+        Loss.__init__(self, name=name)
+        self.prediction = core.Port(
+            name=self.__own__("prediction"))
+        self.target = core.Port(
+            name=self.__own__("target"))
 
+    @property
+    def inputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return dict([(v.name, v) for v in [self.prediction, self.target]])
 
-# def l2_penalty(name, inputs):
-#     """
-#     Returns
-#     -------
-#     scalar_loss : symbolic scalar
-#         Cost of this penalty
-#     inputs : dict
-#         Dictionary of full param names and symbolic parameters.
-#     """
-#     INPUT_KEY = 'input'
-#     assert INPUT_KEY in inputs, \
-#         "Function expected a key named '%s' in 'inputs'." % INPUT_KEY
-#     hyperparam_name = urls.append_param(name, 'l2_penalty')
-#     weight_decay = T.scalar(hyperparam_name, dtype=FLOATX)
-#     scalar_loss = weight_decay * T.sum(T.pow(inputs[INPUT_KEY], 2.0))
-#     return scalar_loss, {weight_decay.name: weight_decay}
+    def transform(self):
+        """writeme"""
+        assert self.prediction.variable, "Port error: 'prediction' not set."
+        prediction = self.prediction.variable
+        assert self.target.variable, "Port error: 'target' not set."
+        target = self.target.variable
 
-
-# def l1_penalty(x_input):
-#     """
-#     Returns
-#     -------
-#     scalar_loss : symbolic scalar
-#         Cost of this penalty
-#     inputs : dict
-#         Dictionary of full param names and symbolic parameters.
-#     """
-#     hyperparam_name = os.path.join(x_input.name, 'l1_penalty')
-#     sparsity = T.scalar(hyperparam_name, dtype=FLOATX)
-#     scalar_loss = sparsity * T.sum(T.abs_(x_input))
-#     return scalar_loss, [sparsity]
+        squared_error = T.pow(prediction - target, 2.0).flatten(2)
+        # self.loss.variable = T.mean(squared_error, axis=-1)
+        self.loss.variable = T.sum(squared_error, axis=-1)
+        self.cost.variable = T.mean(self.loss.variable)

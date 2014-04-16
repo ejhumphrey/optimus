@@ -28,6 +28,7 @@ from .losses import NegativeLogLikelihood
 from .losses import MultiNegativeLogLikelihood
 from .losses import L1Magnitude
 from .losses import L2Magnitude
+from .losses import MeanSquaredError
 
 from .framework import ConnectionManager
 from .framework import Graph
