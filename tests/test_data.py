@@ -2,6 +2,8 @@
 """
 
 import unittest
+import tempfile as tmp
+import os
 import numpy as np
 import optimus.data as D
 
@@ -42,6 +44,33 @@ class DataTests(unittest.TestCase):
             range(5),
             "Failed to initialize a numpy array.")
 
+        key = 'my_key'
+        fpath = tmp.mktemp(suffix=".hdf5", dir=tmp.gettempdir())
+        fh = D.File(fpath)
+        fh.add(key, entity)
+        fh.close()
+        fh = D.File(fpath)
+        entity2 = fh.get(key)
+
+        self.assertEqual(
+            entity.a.value,
+            entity2.a.value,
+            "Could not reconstitute entity.a")
+
+        self.assertEqual(
+            entity.b.value.tostring(),
+            entity2.b.value.tostring(),
+            "Could not reconstitute entity.b")
+
+        self.assertEqual(
+            entity.c.value.tolist(),
+            entity2.c.value.tolist(),
+            "Could not reconstitute entity.c")
+
+        self.assertEqual(
+            entity.d.value.tolist(),
+            entity2.d.value.tolist(),
+            "Could not reconstitute entity.d")
 
 if __name__ == "__main__":
     unittest.main()
