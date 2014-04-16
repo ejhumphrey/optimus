@@ -99,8 +99,8 @@ class Queue(object):
      result
 
     """
-    def __init__(self, source, batch_size, transformers=None, selector=None,
-                 serializer=None, cache_size=1000, refresh_prob=0.01):
+    def __init__(self, source, batch_size, cache_size=1000, refresh_prob=0.01,
+                 transformers=None, selector=None, serializer=None):
         """writeme"""
         self._source = source
         self.batch_size = batch_size
