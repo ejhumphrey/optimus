@@ -1,7 +1,6 @@
 """write meeee"""
 import optimus
 from optimus.examples.mnist import load_mnist
-import numpy as np
 
 # 1.1 Create Inputs
 input_data = optimus.Input(
@@ -39,7 +38,7 @@ affine = optimus.Affine(
     output_shape=(None, 512,),
     act_type='relu')
 
-classifier = optimus.Likelihood(
+classifier = optimus.Softmax(
     name='classifier',
     input_shape=affine.output.shape,
     n_out=10,
@@ -76,8 +75,7 @@ train = optimus.Graph(
     losses=[nll, conv_decay, affine_sparsity],
     update_param=learning_rate.name)
 
-# classifier.weights.value = np.random.normal(
-#     0, 0.25, size=classifier.weights.shape)
+optimus.random_init(classifier.weights)
 
 # 3. Create Data
 dset = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")[0]
