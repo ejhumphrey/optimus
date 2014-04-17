@@ -66,6 +66,9 @@ class Entity(object):
             new_grp.__dict__[key] = _LazyField(group[key])
         return new_grp
 
+    def todict(self):
+        return dict([(k, self[k].value) for k in self.keys()])
+
 
 class Field(object):
     """Data wrapper.

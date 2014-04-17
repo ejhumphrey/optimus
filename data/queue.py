@@ -56,7 +56,11 @@ class LocalCache(object):
 
 
 def unpack_entities(entities):
-    """
+    """Turn a set of entities into key-np.ndarray objects.
+
+    TODO(ejhumphrey): Speed this method up. It is a bottleneck in the data
+    bundling / presentation process.
+
     Parameters
     ----------
     entities: list of Entities
@@ -67,17 +71,14 @@ def unpack_entities(entities):
     arrays: dict of np.ndarrays
         Values in 'arrays' are keyed by the
     """
-    arrays = dict([(k, []) for k in entities[0].keys()])
+    data = dict([(k, list()) for k in entities[0].keys()])
     for entity in entities:
-        for k in entity.keys():
-            if not k in arrays:
-                raise ValueError(
-                    "All Entities must have the same fields: %s" % entity)
-            arrays[k].append(entity[k].value)
+        for k, v in entity.todict().iteritems():
+            data[k].append(v)
 
-    for k in arrays:
-        arrays[k] = np.asarray(arrays[k])
-    return arrays
+    for k in data:
+        data[k] = np.asarray(data[k])
+    return data
 
 
 class Queue(object):
