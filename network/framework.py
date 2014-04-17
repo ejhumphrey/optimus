@@ -301,40 +301,80 @@ def data_stepper(chunk_size=250, **kwargs):
 class Driver(object):
     """
     """
-    def __init__(self, graph, unique_name, output_directory, log_file='',
+    TIME_FMT = "%04d-%02d-%02d_%02dh%02dm%02ds"
+
+    def __init__(self, graph, unique_name, output_directory=None, log_file='',
                  init_param_file=None):
         self.graph = graph
-        if init_param_file:
-            self.graph.load_param_values(init_param_file)
-        output_directory = os.path.join(
-            output_directory, graph.name, unique_name)
-        if not os.path.exists(output_directory):
-            os.makedirs(output_directory)
+        self.log_file = log_file
         self.output_directory = output_directory
         self.unique_name = unique_name
+
         self._file_base = "%s-%s" % (graph.name, unique_name)
-        def_file = os.path.join(self.output_directory,
-                                "%s.json" % self._file_base)
-        save(self.graph, def_file)
-        self._train_stats = []
+
+        if init_param_file:
+            self.graph.load_param_values(init_param_file)
+
+        if not output_directory is None:
+            self.output_directory = os.path.join(
+                output_directory, graph.name, unique_name)
+            if not os.path.exists(self.output_directory):
+                os.makedirs(self.output_directory)
+            def_file = os.path.join(self.output_directory,
+                                    "%s.json" % self._file_base)
+            save(self.graph, def_file)
+
+        self._stats = dict()
 
     def fit(self, source, hyperparams, max_iter=10000, save_freq=100):
-        param_file_fmt = "%%s-%%0%dd.npz" % np.ceil(np.log10(max_iter))
+        self._stats.update(
+            checkpoints=[],
+            start_time=time.asctime(),
+            hyperparams=hyperparams,
+            max_iter=max_iter,
+            save_freq=save_freq)
+
+        param_file_fmt = "%%s-%%0%dd-%s.npz" % (np.ceil(np.log10(max_iter)+1),
+                                                self.TIME_FMT)
         try:
             for n_iter, kwargs in enumerate(source):
                 kwargs.update(**hyperparams)
                 outputs = self.graph(**kwargs)
+                self.update_stats(n_iter, outputs[0])
                 if (n_iter % save_freq) == 0:
-                    param_file = os.path.join(
-                        self.output_directory,
-                        param_file_fmt % (self._file_base, n_iter))
-                    self.graph.save_param_values(param_file)
-                    print "[%s] %d / %d: %0.4f" % (time.asctime(),
-                                                   n_iter,
-                                                   max_iter,
-                                                   outputs[0])
+                    if not self.output_directory is None:
+                        self._save_params(n_iter, param_file_fmt)
+                    self.print_last_stats()
+
+                if n_iter >= max_iter:
+                    break
+                if not np.isfinite(outputs[0]):
+                    break
         except KeyboardInterrupt:
             print "Stopping early after %d iterations" % n_iter
 
+    def update_stats(self, n_iter, loss):
+        cpoint = dict(timestamp=time.asctime(),
+                      n_iter=n_iter,
+                      loss=float(loss))
+        self._stats['checkpoints'].append(cpoint)
+
+    def print_last_stats(self):
+        cpoint = self._stats['checkpoints'][-1]
+        print "[%s] %d / %d: %0.4f" % (cpoint['timestamp'],
+                                       cpoint['n_iter'],
+                                       self._stats['max_iter'],
+                                       cpoint['loss'])
+
+    def _save_params(self, n_iter, param_file_fmt):
+        args = tuple([self._file_base, n_iter] + list(time.localtime()[:6]))
+        param_file = os.path.join(self.output_directory, param_file_fmt % args)
+        self.graph.save_param_values(param_file)
+
     def __del__(self):
-        pass
+        if not self.log_file or not self.output_directory:
+            return
+        log_file = os.path.join(self.output_directory,
+                                "%s.json" % self.log_file)
+        with open(log_file, 'w') as fp:
+            json.dump(self._stats, fp, indent=2)
