@@ -86,7 +86,7 @@ if __name__ == "__main__":
                         metavar="json_file", type=str,
                         help="JSON file to load into an optimus file.")
     parser.add_argument("output_file",
-                        metavar="output_directory", type=str,
+                        metavar="output_file", type=str,
                         help="Filename for the output.")
 
     main(parser.parse_args())
