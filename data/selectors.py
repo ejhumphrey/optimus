@@ -4,17 +4,26 @@ import numpy as np
 
 
 def iteritems(obj):
-    """Iteritem generator."""
-    for key in obj.keys():
-        yield key, obj.get(key)
+    """Infinite iteritem generator."""
+    keys = obj.keys()
+    idx = 0
+    while True:
+        yield keys[idx], obj.get(keys[idx])
+        idx += 1
+        if idx >= len(keys):
+            idx = 0
 
 
 def sorted_iteritems(obj):
     """Like iteritems, but keys are sorted first."""
     keys = obj.keys()
     keys.sort()
-    for key in keys:
-        yield key, obj.get(key)
+    idx = 0
+    while True:
+        yield keys[idx], obj.get(keys[idx])
+        idx += 1
+        if idx >= len(keys):
+            idx = 0
 
 
 def permuted_iteritems(obj):
