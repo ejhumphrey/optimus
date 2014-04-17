@@ -19,16 +19,17 @@ class LocalCache(object):
         self._refresh_prob = refresh_prob
         self._item_gen = self._selector(self._data)
 
+    def __update_selector__(self):
+        self._item_gen = self._selector(self._data)
+
     def get(self, key):
-        """
-        Fetch the Group for a given key.
-        """
+        """Fetch the value for a given key."""
         return self._data.get(key)
 
     def add(self, key, entity):
         """writeme."""
         self._data[key] = entity
-        self._item_gen = self._selector(self._data)
+        self.__update_selector__()
 
     def keys(self):
         """writeme."""
@@ -44,8 +45,8 @@ class LocalCache(object):
         """Swap an existing key-value pair with a new one."""
         # Refresh on success.
         if np.random.binomial(1, p=prob):
-            print "Deleting %s" % key
-            self.remove(key)
+            del self._data[key]
+            self.__update_selector__()
 
     def next(self):
         """Return the next item."""
@@ -122,7 +123,7 @@ class Queue(object):
 
         # If the requested cache size is larger than the number of items in
         # the source, snap it down and disable auto-refresh.
-        if cache_size > len(source):
+        if cache_size > len(source) or cache_size is None:
             cache_size = len(source)
             refresh_prob = 0
 
@@ -145,6 +146,8 @@ class Queue(object):
             for fx in self._transformers:
                 item = fx(item)
             item_buffer.append(item)
+
+        self.populate()
         return self._serializer(item_buffer)
 
     def __iter__(self):
