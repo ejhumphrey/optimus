@@ -1,6 +1,6 @@
 """
 """
-
+import time
 import h5py
 from collections import OrderedDict
 
@@ -18,12 +18,15 @@ class File(h5py.File):
     def __init__(self, name, mode=None, entity=None, **kwds):
         """writeme."""
         h5py.File.__init__(self, name=name, mode=mode, **kwds)
+        keys, addrs = [], []
 
         if entity is None:
             self._entity_cls = core.Entity
+        if self.__KEYS__ in self:
+            keys = self[self.__KEYS__]
+        if self.__ADDR__ in self:
+            addrs = self[self.__ADDR__]
 
-        keys = list(h5py.File.get(self, self.__KEYS__, []))
-        addrs = list(h5py.File.get(self, self.__ADDR__, []))
         self._key_map = OrderedDict([(k, a) for k, a in zip(keys, addrs)])
         self._agu = keyutils.uniform_hexgen(self.__DEPTH__, self.__WIDTH__)
 
