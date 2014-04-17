@@ -5,16 +5,13 @@ import cPickle
 from matplotlib.pyplot import figure
 import numpy as np
 from optimus.data import Entity
-from optimus.data import Feature
 
 
 class Digit(Entity):
-    """Define the features for an handwritten digit."""
+    """Define the fields for a handwritten digit."""
     def __init__(self, image, label):
         """writeme"""
-        Entity.__init__(self,
-                        image=Feature(value=image),
-                        label=Feature(value=label))
+        Entity.__init__(self, image=image, label=label)
 
 
 def load_mnist(filename):
