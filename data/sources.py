@@ -20,7 +20,8 @@ class File(h5py.File):
         h5py.File.__init__(self, name=name, mode=mode, **kwds)
 
         if entity is None:
-            self._entity_cls = core.Entity
+            entity = core.Entity
+        self._entity_cls = entity
 
         self._keymap = self.__decode_keymap__()
         self._agu = keyutils.uniform_hexgen(self.__DEPTH__, self.__WIDTH__)
