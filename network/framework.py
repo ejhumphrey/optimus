@@ -138,7 +138,10 @@ class Graph(JObject):
     @param_values.setter
     def param_values(self, values):
         for k in values.keys():
-            self.params[k].value = values[k]
+            if k in self.params:
+                self.params[k].value = values[k]
+            else:
+                print "Received erroneous parameter: %s" % k
 
     def __wire__(self):
         """Walk inputs to outputs via connection map, collecting
@@ -326,7 +329,8 @@ class Driver(object):
 
         self._stats = dict()
 
-    def fit(self, source, hyperparams, max_iter=10000, save_freq=100):
+    def fit(self, source, hyperparams, max_iter=10000, save_freq=250,
+            print_freq=50):
         self._stats.update(
             checkpoints=[],
             start_time=time.asctime(),
@@ -337,19 +341,21 @@ class Driver(object):
         param_file_fmt = "%%s-%%0%dd-%s.npz" % (np.ceil(np.log10(max_iter)+1),
                                                 self.TIME_FMT)
         try:
-            for n_iter, kwargs in enumerate(source):
-                kwargs.update(**hyperparams)
-                outputs = self.graph(**kwargs)
+            for n_iter, data in enumerate(source):
+                data.update(**hyperparams)
+                outputs = self.graph(**data)
                 self.update_stats(n_iter, outputs[0])
                 if (n_iter % save_freq) == 0:
                     if not self.output_directory is None:
                         self._save_params(n_iter, param_file_fmt)
+                if (n_iter % print_freq) == 0:
                     self.print_last_stats()
-
                 if n_iter >= max_iter:
                     break
                 if not np.isfinite(outputs[0]):
+                    print "Caught a non-finite loss at iteration: %d " % n_iter
                     break
+
         except KeyboardInterrupt:
             print "Stopping early after %d iterations" % n_iter
 
