@@ -3,6 +3,7 @@
 
 from . import selectors
 import numpy as np
+import sys
 
 
 class LocalCache(object):
@@ -73,7 +74,7 @@ def unpack_entities(entities):
     """
     data = dict([(k, list()) for k in entities[0].keys()])
     for entity in entities:
-        for k, v in entity.todict().iteritems():
+        for k, v in entity.values.iteritems():
             data[k].append(v)
 
     for k in data:
@@ -130,26 +131,52 @@ class Queue(object):
 
         self.cache = LocalCache(refresh_prob=refresh_prob, selector=selector)
         self._cache_size = cache_size
-        self.populate()
+        self.populate(cache_size > 1)
 
-    def populate(self):
+    def populate(self, verbose=False):
         """writeme"""
-        while len(self.cache) <= self._cache_size:
+        if verbose:
+            count = self._cache_size - len(self.cache)
+            sys.stdout.write("Loading %d datapoint(s) " % count)
+            sys.stdout.flush()
+        dots = 0
+        while len(self.cache) < self._cache_size:
             key, entity = self._selector.next()
             self.cache.add(key, entity)
+            if verbose and (10 * len(self.cache) / float(count)) > dots:
+                dots += 1
+                sys.stdout.write(".")
+                sys.stdout.flush()
+        if verbose:
+            sys.stdout.write(" Done!\n")
+            sys.stdout.flush()
+            # keys = self.cache.keys()
+            # keys.sort()
+            # print "cache: " + " | ".join(keys)
 
     def next(self):
         """
         """
-        item_buffer = []
-        for n in range(self.batch_size):
-            item = self.cache.next()[-1]
+        data_buffer = dict()
+        count = 0
+        # keys = []
+        while count < self.batch_size:
+            key, item = self.cache.next()
             for fx in self._transformers:
                 item = fx(item)
-            item_buffer.append(item)
-
+            if item is None:
+                continue
+            # keys.append(key)
+            for k, v in item.values.iteritems():
+                if not k in data_buffer:
+                    v_shape = [self.batch_size] + list(v.shape)
+                    data_buffer[k] = np.zeros(v_shape, dtype=v.dtype)
+                data_buffer[k][count] = v
+            count += 1
+        # keys.sort()
+        # print "batch: " + " | ".join(keys)
         self.populate()
-        return self._serializer(item_buffer)
+        return data_buffer
 
     def __iter__(self):
         return self
