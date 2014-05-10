@@ -6,9 +6,8 @@ import numpy as np
 import sys
 
 
-class LocalCache(object):
-    """Basically, a dictionary with some bonus methods.
-    """
+class Cache(object):
+    """Basically, a dictionary with some bonus methods."""
     def __init__(self, refresh_prob, selector=None):
         """writeme."""
 
@@ -50,7 +49,7 @@ class LocalCache(object):
             self.__update_selector__()
 
     def next(self):
-        """Return the next item."""
+        """Return the next item from the internal selector."""
         key, entity = self._item_gen.next()
         self.remove(key, prob=self._refresh_prob)
         return key, entity
@@ -70,7 +69,7 @@ def unpack_entities(entities):
     Returns
     -------
     arrays: dict of np.ndarrays
-        Values in 'arrays' are keyed by the
+        Values in 'arrays' are keyed by the fields of the Entities.
     """
     data = dict([(k, list()) for k in entities[0].keys()])
     for entity in entities:
@@ -84,13 +83,13 @@ def unpack_entities(entities):
 
 class Queue(object):
     """
-    Note: Could potentially take a list of Field names, which may be
-    a subset of the fields in an entity.
+    There are two levels of data selection:
+    - From the source, default=permutation
+    - From the local cache, default=
 
-    Alternatively, it'd be just as easy to introduce a Transformer that deletes
-    or manages such fields (and then the unpack method never needs to change).
 
-    The BatchQueue Pipeline:
+
+    Data Pipeline:
 
      source
       |
@@ -124,17 +123,18 @@ class Queue(object):
         self._serializer = serializer
 
         # If the requested cache size is larger than the number of items in
-        # the source, snap it down and disable auto-refresh.
+        # the source, set the capacity to the size of the source and disable
+        # auto-refresh.
         if cache_size > len(source) or cache_size is None:
             cache_size = len(source)
             refresh_prob = 0
 
-        self.cache = LocalCache(refresh_prob=refresh_prob, selector=selector)
+        self.cache = Cache(refresh_prob=refresh_prob, selector=selector)
         self._cache_size = cache_size
         self.populate(cache_size > 1)
 
     def populate(self, verbose=False):
-        """writeme"""
+        """Cache datapoints in memory."""
         if verbose:
             count = self._cache_size - len(self.cache)
             sys.stdout.write("Loading %d datapoint(s) " % count)
@@ -150,31 +150,28 @@ class Queue(object):
         if verbose:
             sys.stdout.write(" Done!\n")
             sys.stdout.flush()
-            # keys = self.cache.keys()
-            # keys.sort()
-            # print "cache: " + " | ".join(keys)
 
     def next(self):
-        """
+        """Return the next batch of datapoints.
+
+        Any datapoints in the pipeline that return 'None' are discarded.
         """
         data_buffer = dict()
-        count = 0
-        # keys = []
-        while count < self.batch_size:
-            key, item = self.cache.next()
+        batch_idx = 0
+        while batch_idx < self.batch_size:
+            key, entity = self.cache.next()
+            # Apply the Transformer pipeline
             for fx in self._transformers:
-                item = fx(item)
-            if item is None:
+                entity = fx(entity)
+            # Drop null datapoints
+            if entity is None:
                 continue
-            # keys.append(key)
-            for k, v in item.values.iteritems():
-                if not k in data_buffer:
-                    v_shape = [self.batch_size] + list(v.shape)
-                    data_buffer[k] = np.zeros(v_shape, dtype=v.dtype)
-                data_buffer[k][count] = v
-            count += 1
-        # keys.sort()
-        # print "batch: " + " | ".join(keys)
+            for field, value in entity.values.iteritems():
+                if not field in data_buffer:
+                    val_shape = [self.batch_size] + list(value.shape)
+                    data_buffer[field] = np.zeros(val_shape, dtype=value.dtype)
+                data_buffer[field][batch_idx] = value
+            batch_idx += 1
         self.populate()
         return data_buffer
 
