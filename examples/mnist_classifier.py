@@ -55,7 +55,7 @@ affine_sparsity = optimus.L1Magnitude(
     name="feature_sparsity")
 
 # 2. Define Edges
-connector = optimus.ConnectionManager([
+connect_manager = optimus.ConnectionManager([
     (input_data, conv.input),
     (conv.output, affine.input),
     (affine.output, classifier.input),
@@ -66,14 +66,22 @@ connector = optimus.ConnectionManager([
     (affine.output, affine_sparsity.input),
     (sparsity, affine_sparsity.weight)])
 
+update_manager = optimus.ConnectionManager([
+    (learning_rate, conv.weights),
+    (learning_rate, conv.bias),
+    (learning_rate, affine.weights),
+    (learning_rate, affine.bias),
+    (learning_rate, classifier.weights),
+    (learning_rate, classifier.bias)])
+
 train = optimus.Graph(
     name='mnist_3layer',
     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],
-    connections=connector.connections,
+    connections=connect_manager.connections,
     outputs=[optimus.Graph.TOTAL_LOSS, classifier.output],
     losses=[nll, conv_decay, affine_sparsity],
-    update_param=learning_rate.name)
+    updates=update_manager.connections)
 
 optimus.random_init(classifier.weights)
 
@@ -81,14 +89,11 @@ optimus.random_init(classifier.weights)
 dset = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")[0]
 source = optimus.Queue(dset, batch_size=50, refresh_prob=0.0, cache_size=5000)
 
-driver = optimus.Driver(
-    graph=train,
-    unique_name="dev_000",
-    output_directory="/Volumes/megatron/optimus/",
-    init_param_file="/Volumes/megatron/optimus/mnist_3layer/init_params.npz")
+driver = optimus.Driver(graph=train, name='example_classifier')
 
-hyperparams = {learning_rate.name: 0.02,
-               sparsity.name: 0.001,
-               decay.name: 0.1}
+hyperparams = {
+    learning_rate.name: 0.02,
+    sparsity.name: 0.001,
+    decay.name: 0.1}
 
 driver.fit(source, hyperparams=hyperparams, max_iter=5000, save_freq=25)

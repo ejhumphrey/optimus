@@ -64,7 +64,7 @@ class Graph(JObject):
     TOTAL_LOSS = 'total_loss'
 
     def __init__(self, name, inputs, nodes, connections, outputs,
-                 losses=None, update_param=None, constraints=None,
+                 losses=None, updates=None, constraints=None,
                  chunk_size=250):
         """writeme."""
 
@@ -86,9 +86,9 @@ class Graph(JObject):
 
         self.chunk_size = chunk_size
         # Disable chunking for trainers.
-        if update_param:
+        if updates:
             self.chunk_size = None
-        self.update_param = update_param
+        self._updates = updates
 
         if constraints is None:
             constraints = list()
@@ -116,7 +116,7 @@ class Graph(JObject):
             connections=self._connections,
             outputs=self._outputs,
             losses=self._losses,
-            update_param=self.update_param,
+            updates=self._updates,
             type=self.type)
 
     @property
@@ -220,12 +220,15 @@ class Graph(JObject):
         # TODO(ejhumphrey): In the future, it would be super useful to at least
         #   make it optional to use different update params for different node
         #   parameters.
-        eta = self.inputs.get(self.update_param, None)
-        if self.loss.variable and eta:
-            for param in self.params.values():
-                gparam = grad(self.loss.variable, param.variable)
-                gparam *= eta.variable
-                self.updates[param.variable] = param.variable - gparam
+
+        if self.loss.variable and self._updates:
+            for input_name, param_names in self._updates.iteritems():
+                eta = self.inputs.get(input_name)
+                for param_name in param_names:
+                    param = self.params[param_name]
+                    gparam = grad(self.loss.variable, param.variable)
+                    gparam *= eta.variable
+                    self.updates[param.variable] = param.variable - gparam
 
         self._fx = function(
             inputs=[x.variable for x in self._inputs],
@@ -306,21 +309,21 @@ class Driver(object):
     """
     TIME_FMT = "%04d-%02d-%02d_%02dh%02dm%02ds"
 
-    def __init__(self, graph, unique_name, output_directory=None, log_file='',
+    def __init__(self, graph, name, output_directory=None, log_file='',
                  init_param_file=None):
         self.graph = graph
         self.log_file = log_file
         self.output_directory = output_directory
-        self.unique_name = unique_name
+        self.name = name
 
-        self._file_base = "%s-%s" % (graph.name, unique_name)
+        self._file_base = "%s-%s" % (graph.name, name)
 
         if init_param_file:
             self.graph.load_param_values(init_param_file)
 
         if not output_directory is None:
             self.output_directory = os.path.join(
-                output_directory, graph.name, unique_name)
+                output_directory, graph.name, self.name)
             if not os.path.exists(self.output_directory):
                 os.makedirs(self.output_directory)
             def_file = os.path.join(self.output_directory,
@@ -331,12 +334,16 @@ class Driver(object):
 
     def fit(self, source, hyperparams, max_iter=10000, save_freq=250,
             print_freq=50):
+        """Fit the internal graph to the given data source."""
         self._stats.update(
             checkpoints=[],
             start_time=time.asctime(),
             hyperparams=hyperparams,
             max_iter=max_iter,
             save_freq=save_freq)
+
+        if save_freq is None or save_freq <= 0:
+            save_freq = np.inf
 
         param_file_fmt = "%%s-%%0%dd-%s.npz" % (np.ceil(np.log10(max_iter)+1),
                                                 self.TIME_FMT)
@@ -345,7 +352,7 @@ class Driver(object):
                 data.update(**hyperparams)
                 outputs = self.graph(**data)
                 self.update_stats(n_iter, outputs[0])
-                if (n_iter % save_freq) == 0:
+                if n_iter > 0 and (n_iter % save_freq) == 0:
                     if not self.output_directory is None:
                         self._save_params(n_iter, param_file_fmt)
                 if (n_iter % print_freq) == 0:
