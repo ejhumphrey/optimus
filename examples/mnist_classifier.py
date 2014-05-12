@@ -55,7 +55,7 @@ affine_sparsity = optimus.L1Magnitude(
     name="feature_sparsity")
 
 # 2. Define Edges
-connect_manager = optimus.ConnectionManager([
+train_edges = optimus.ConnectionManager([
     (input_data, conv.input),
     (conv.output, affine.input),
     (affine.output, classifier.input),
@@ -78,22 +78,34 @@ train = optimus.Graph(
     name='mnist_3layer',
     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],
-    connections=connect_manager.connections,
+    connections=train_edges.connections,
     outputs=[optimus.Graph.TOTAL_LOSS, classifier.output],
     losses=[nll, conv_decay, affine_sparsity],
     updates=update_manager.connections)
 
 optimus.random_init(classifier.weights)
 
-# 3. Create Data
+# est_edges = optimus.ConnectionManager([
+#     (input_data, conv.input),
+#     (conv.output, affine.input),
+#     (affine.output, classifier.input)])
+
+# estimate = optimus.Graph(
+#     name='mnist_classifier',
+#     inputs=[input_data],
+#     nodes=[conv, affine, classifier],
+#     connections=est_edges.connections,
+#     outputs=[classifier.output])
+
+# # 3. Create Data
 dset = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")[0]
-source = optimus.Queue(dset, batch_size=50, refresh_prob=0.0, cache_size=5000)
+source = optimus.Queue(dset, batch_size=50, refresh_prob=0.0, cache_size=50000)
 
 driver = optimus.Driver(graph=train, name='example_classifier')
 
 hyperparams = {
-    learning_rate.name: 0.02,
-    sparsity.name: 0.001,
-    decay.name: 0.1}
+    learning_rate.name: 0.01,
+    sparsity.name: 0.002,
+    decay.name: 0.002}
 
-driver.fit(source, hyperparams=hyperparams, max_iter=5000, save_freq=25)
+driver.fit(source, hyperparams=hyperparams, max_iter=5000, print_freq=25)
