@@ -55,7 +55,7 @@ affine_sparsity = optimus.L1Magnitude(
     name="feature_sparsity")
 
 # 2. Define Edges
-train_edges = optimus.ConnectionManager([
+trainer_edges = optimus.ConnectionManager([
     (input_data, conv.input),
     (conv.output, affine.input),
     (affine.output, classifier.input),
@@ -74,38 +74,39 @@ update_manager = optimus.ConnectionManager([
     (learning_rate, classifier.weights),
     (learning_rate, classifier.bias)])
 
-train = optimus.Graph(
+trainer = optimus.Graph(
     name='mnist_3layer',
     inputs=[input_data, class_labels, decay, sparsity, learning_rate],
     nodes=[conv, affine, classifier],
-    connections=train_edges.connections,
+    connections=trainer_edges.connections,
     outputs=[optimus.Graph.TOTAL_LOSS, classifier.output],
     losses=[nll, conv_decay, affine_sparsity],
     updates=update_manager.connections)
 
 optimus.random_init(classifier.weights)
 
-# est_edges = optimus.ConnectionManager([
-#     (input_data, conv.input),
-#     (conv.output, affine.input),
-#     (affine.output, classifier.input)])
+predictor_edges = optimus.ConnectionManager([
+    (input_data, conv.input),
+    (conv.output, affine.input),
+    (affine.output, classifier.input)])
 
-# estimate = optimus.Graph(
-#     name='mnist_classifier',
-#     inputs=[input_data],
-#     nodes=[conv, affine, classifier],
-#     connections=est_edges.connections,
-#     outputs=[classifier.output])
+predictor = optimus.Graph(
+    name='mnist_classifier',
+    inputs=[input_data],
+    nodes=[conv, affine, classifier],
+    connections=predictor_edges.connections,
+    outputs=[classifier.output])
 
 # # 3. Create Data
-dset = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")[0]
-source = optimus.Queue(dset, batch_size=50, refresh_prob=0.0, cache_size=50000)
+datasets = load_mnist("/Users/ejhumphrey/Desktop/mnist.pkl")
+source = optimus.Queue(
+    datasets[0], batch_size=50, refresh_prob=0.0, cache_size=50000)
 
-driver = optimus.Driver(graph=train, name='example_classifier')
+driver = optimus.Driver(graph=trainer, name='example_classifier')
 
 hyperparams = {
-    learning_rate.name: 0.01,
-    sparsity.name: 0.002,
-    decay.name: 0.002}
+    learning_rate.name: 0.02,
+    sparsity.name: 0.0,
+    decay.name: 0.0}
 
 driver.fit(source, hyperparams=hyperparams, max_iter=5000, print_freq=25)
