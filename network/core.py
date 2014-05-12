@@ -82,7 +82,7 @@ class Port(object):
 
     def reset(self):
         """TODO(ejhumphrey): write me."""
-        self._variable[0] = None
+        self._variable = [None]
 
     def connect(self, source):
         """TODO(ejhumphrey): write me."""
@@ -137,8 +137,7 @@ class PortList(object):
 
     def reset(self):
         """TODO(ejhumphrey): write me."""
-        while self._variable:
-            self._variable.pop(0)
+        self._variable = []
 
     def connect(self, source):
         """TODO(ejhumphrey): write me."""
@@ -178,10 +177,17 @@ class Input(Port):
     # TODO(ejhumphrey): Shouldn't the order of these be switched?
     def __init__(self, shape, name, dtype=None):
         self.shape = shape
+        self._name = name
         # List representation to keep consistency with Ports
         if dtype is None:
             dtype = FLOATX
-        self._variable = [TENSOR_TYPES[self.ndim](name=name, dtype=dtype)]
+        self._dtype = dtype
+        self._variable = [TENSOR_TYPES[self.ndim](name=self._name,
+                                                  dtype=self._dtype)]
+
+    def reset(self):
+        self._variable = [TENSOR_TYPES[self.ndim](name=self._name,
+                                                  dtype=self._dtype)]
 
     @property
     def __json__(self):
@@ -211,10 +217,10 @@ class Input(Port):
 class Output(Port):
     """TODO(ejhumphrey): write me."""
 
-    def reset(self):
-        """TODO(ejhumphrey): write me."""
-        self.shape = []
-        self.variable = None
+    # def reset(self):
+    #     """TODO(ejhumphrey): write me."""
+    #     self.shape = []
+    #     self.variable = None
 
 
 class Parameter(object):

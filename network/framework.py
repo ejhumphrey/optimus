@@ -164,11 +164,13 @@ class Graph(JObject):
 
         # Collect the Inputs of all nodes...
         for node in self.nodes.values():
+            node.reset()
             input_ports.update(node.inputs)
         # ...losses...
         for node in self.losses.values():
+            # TODO(ejhumphrey): Known bug with losses...
+            # node.reset()
             input_ports.update(node.inputs)
-        # ...and outputs.
 
         local_map = self._connections.copy()
         # print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
@@ -217,10 +219,6 @@ class Graph(JObject):
                 "not been initialized." % self.TOTAL_LOSS)
 
         # Define SGD update rules
-        # TODO(ejhumphrey): In the future, it would be super useful to at least
-        #   make it optional to use different update params for different node
-        #   parameters.
-
         if self.loss.variable and self._updates:
             for input_name, param_names in self._updates.iteritems():
                 eta = self.inputs.get(input_name)
