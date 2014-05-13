@@ -217,6 +217,8 @@ class Input(Port):
 class Output(Port):
     """TODO(ejhumphrey): write me."""
 
+    # TODO(ejhumphrey): This seems to be unnecessary now. Why was it here in
+    #   the first place?
     # def reset(self):
     #     """TODO(ejhumphrey): write me."""
     #     self.shape = []

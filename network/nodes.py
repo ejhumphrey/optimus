@@ -37,7 +37,6 @@ class Node(core.JObject):
 
     def reset(self):
         """TODO(ejhumphrey): write me."""
-        # TODO(ejhumphrey): This call doesn't seem to be propagating.
         for p in self.inputs.values():
             p.reset()
         for p in self.outputs.values():
