@@ -49,6 +49,7 @@ class DataTests(unittest.TestCase):
         fh = D.File(fpath)
         fh.add(key, entity)
         fh.close()
+
         fh = D.File(fpath)
         entity2 = fh.get(key)
 
@@ -71,6 +72,17 @@ class DataTests(unittest.TestCase):
             entity.d.value.tolist(),
             entity2.d.value.tolist(),
             "Could not reconstitute entity.d")
+
+        entity2.a.value = 4
+        self.assertRaises(ValueError, fh.add, key, entity2)
+
+        fh.add(key, entity2, True)
+        fh.close()
+
+        fh = D.File(fpath)
+        entity3 = fh.get(key)
+        self.assertEqual(len(fh), 1)
+        self.assertEqual(entity3.a.value, 4)
 
 if __name__ == "__main__":
     unittest.main()

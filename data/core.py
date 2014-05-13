@@ -106,6 +106,12 @@ class _LazyField(object):
             self._value = self._dataset.value
         return self._value
 
+    @value.setter
+    def value(self, value):
+        """writeme."""
+        self._value = value
+        return
+
     @property
     def attrs(self):
         """writeme."""

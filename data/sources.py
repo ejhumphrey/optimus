@@ -10,7 +10,7 @@ from . import keyutils
 
 
 class File(h5py.File):
-    """writeme."""
+    """File object for managing """
     __KEYMAP__ = "__KEYMAP__"
     __WIDTH__ = 256
     __DEPTH__ = 3
@@ -59,15 +59,30 @@ class File(h5py.File):
             "Key inconsistency: received '%s', expected '%s'" % (raw_key, key)
         return self._entity_cls.from_hdf5_group(raw_group)
 
-    def add(self, key, entity):
-        """writeme."""
+    def add(self, key, entity, overwrite=False):
+        """Add a key-entity pair to the File.
+
+        Parameters
+        ----------
+        key: str
+            Key to write the value under.
+        entity: Entity
+            Object to write to file.
+        overwrite: bool, default=False
+            Overwrite the key-entity pair if the key currently exists.
+        """
         key = str(key)
-        assert not key in self._keymap
-        addr = self._agu.next()
-        while addr in self:
+        if key in self._keymap:
+            if not overwrite:
+                raise ValueError(
+                    "Data exists for '%s'; did you mean overwrite=True?" % key)
+            else:
+                addr = self.remove(key)
+        else:
             addr = self._agu.next()
 
-        # print "%s -> %s" % (key, addr)
+        while addr in self:
+            addr = self._agu.next()
 
         self._keymap[key] = addr
         new_grp = self.create_group(addr)
@@ -77,8 +92,28 @@ class File(h5py.File):
             for k, v in new_dset.attrs.iteritems():
                 dset.attrs.create(name=k, data=v)
 
+    def remove(self, key):
+        """Delete a key-entity pair from the File.
+
+        Parameters
+        ----------
+        key: str
+            Key to remove from the File.
+
+        Returns
+        -------
+        address: str
+            Absolute internal address freed in the process.
+        """
+        addr = self._keymap.pop(key, None)
+        if addr is None:
+            raise ValueError("The key '%s' does not exist." % key)
+
+        del self[addr]
+        return addr
+
     def keys(self):
-        """writeme."""
+        """Return a list of all keys in the File."""
         return self._keymap.keys()
 
     def paths(self):
