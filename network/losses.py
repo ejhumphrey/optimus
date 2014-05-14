@@ -239,3 +239,31 @@ class MeanSquaredError(Loss):
         # self.loss.variable = T.mean(squared_error, axis=-1)
         self.loss.variable = T.sum(squared_error, axis=-1)
         self.cost.variable = T.mean(self.loss.variable)
+
+
+class CategoricalCrossEntropy(Loss):
+    """writeme"""
+    def __init__(self, name):
+        # Input Validation
+        Loss.__init__(self, name=name)
+        self.prediction = core.Port(
+            name=self.__own__("prediction"))
+        self.target = core.Port(
+            name=self.__own__("target"))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return dict([(v.name, v) for v in [self.prediction, self.target]])
+
+    def transform(self):
+        """writeme"""
+        assert self.prediction.variable, "Port error: 'prediction' not set."
+        prediction = self.prediction.variable
+        assert self.target.variable, "Port error: 'target' not set."
+        target = self.target.variable
+
+        loss = T.nnet.categorical_crossentropy(prediction, target)
+        self.loss.variable = loss
+        self.cost.variable = T.mean(loss)
