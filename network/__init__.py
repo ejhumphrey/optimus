@@ -34,6 +34,7 @@ from .losses import CategoricalCrossEntropy
 from .framework import ConnectionManager
 from .framework import Graph
 from .framework import Driver
+from .framework import MultiSourceDriver
 from .framework import save
 from .framework import load
 from .framework import random_init
