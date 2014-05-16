@@ -82,13 +82,15 @@ class Affine(Node):
       (i.e., a fully-connected non-linear projection)
 
     """
-    def __init__(self, name, input_shape, output_shape, act_type):
+    def __init__(self, name, input_shape, output_shape, act_type,
+                 dropout=False):
         Node.__init__(
             self,
             name=name,
             input_shape=input_shape,
             output_shape=output_shape,
-            act_type=act_type)
+            act_type=act_type,
+            dropout=dropout)
         self.act_type = act_type
 
         n_in = int(np.prod(input_shape[1:]))
@@ -100,7 +102,7 @@ class Affine(Node):
         self.output = core.Port(
             shape=output_shape, name=self.__own__('output'))
         self.dropout = core.Port(
-            shape=None, name=self.__own__('dropout'))
+            shape=None, name=self.__own__('dropout')) if dropout else None
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self.bias = core.Parameter(
@@ -115,7 +117,10 @@ class Affine(Node):
         """Return a list of all active Inputs in the node."""
         # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
         # i.e. dropout yes/no?
-        return {self.input.name: self.input}
+        ports = [self.input]
+        if self.dropout:
+            ports.append(self.dropout)
+        return dict([(v.name, v) for v in ports])
 
     @property
     def params(self):
@@ -138,15 +143,16 @@ class Affine(Node):
 
         x_in = T.flatten(self.input.variable, outdim=2)
         z_out = self.activation(T.dot(x_in, weights) + bias)
-        output_shape = list(self.output.shape)[1:]
-        z_out = T.reshape(z_out, [z_out.shape[0]] + output_shape)
-        if not self.dropout.variable is None:
+        if self.dropout:
+            print "Performing dropout in %s" % self.name
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
-                size=output_shape, p=1.0 - dropout)
+                size=self.bias.shape, p=1.0 - dropout)
             z_out *= selector.dimshuffle('x', 0) * (dropout + 0.5)
 
-        self.output.variable = z_out
+        output_shape = list(self.output.shape)[1:]
+        self.output.variable = T.reshape(
+            z_out, [z_out.shape[0]] + output_shape)
 
 
 class Conv3D(Node):
@@ -310,8 +316,9 @@ class Softmax(Affine):
             shape=input_shape, name=self.__own__('input'))
         self.output = core.Port(
             shape=[input_shape[0], n_out], name=self.__own__('output'))
-        self.dropout = core.Port(
-            shape=None, name=self.__own__('dropout'))
+        self.dropout = None
+        # self.dropout = core.Port(
+        #     shape=None, name=self.__own__('dropout'))
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self.bias = core.Parameter(
@@ -323,8 +330,8 @@ class Softmax(Affine):
         (N x d0 x d1 x ... dn) -> (N x prod(d_(0:n)))
         """
         # I don't think we want this, but I'll leave it for now.
-        assert self.dropout.variable is None, \
-            "Softmax nodes do not currently support dropout."
+        # assert self.dropout.variable is None, \
+        #     "Softmax nodes do not currently support dropout."
         Affine.transform(self)
         self.output.variable = T.nnet.softmax(self.output.variable)
 
