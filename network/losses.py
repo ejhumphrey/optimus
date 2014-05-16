@@ -85,19 +85,26 @@ class Accumulator(Loss):
 
 class NegativeLogLikelihood(Loss):
     """writeme"""
-    def __init__(self, name):
+    def __init__(self, name, weighted=False):
         # Input Validation
-        Loss.__init__(self, name=name)
+        Loss.__init__(self, name=name, weighted=weighted)
         self.likelihood = core.Port(
             name=self.__own__("likelihood"))
         self.target_idx = core.Port(
             name=self.__own__("target_idx"), shape=[])
+        self.weights = None
+        if weighted:
+            self.weights = core.Port(
+                name=self.__own__("weights"), shape=[])
 
     @property
     def inputs(self):
         """Return a list of all active Outputs in the node."""
         # Filter based on what is set / active?
-        return dict([(v.name, v) for v in [self.likelihood, self.target_idx]])
+        ports = [self.likelihood, self.target_idx]
+        if self.weights:
+            ports.append(self.weights)
+        return dict([(v.name, v) for v in ports])
 
     # @property
     # def outputs(self):
@@ -114,6 +121,8 @@ class NegativeLogLikelihood(Loss):
         # Create the local givens.
         batch_idx = T.arange(target_idx.shape[0], dtype='int32')
         self.loss.variable = -T.log(likelihood)[batch_idx, target_idx]
+        if self.weights:
+            self.loss.variable *= self.weights.variable
         self.cost.variable = T.mean(self.loss.variable)
 
 
@@ -214,13 +223,17 @@ class L2Magnitude(L1Magnitude):
 
 class MeanSquaredError(Loss):
     """writeme"""
-    def __init__(self, name):
+    def __init__(self, name, weighted=False):
         # Input Validation
-        Loss.__init__(self, name=name)
+        Loss.__init__(self, name=name, weighted=weighted)
         self.prediction = core.Port(
             name=self.__own__("prediction"))
         self.target = core.Port(
             name=self.__own__("target"))
+        self.weights = None
+        if weighted:
+            self.weights = core.Port(
+                name=self.__own__("weights"), shape=[])
 
     @property
     def inputs(self):
@@ -238,18 +251,24 @@ class MeanSquaredError(Loss):
         squared_error = T.pow(prediction - target, 2.0).flatten(2)
         # self.loss.variable = T.mean(squared_error, axis=-1)
         self.loss.variable = T.sum(squared_error, axis=-1)
+        if self.weights:
+            self.loss.variable *= self.weights.variable
         self.cost.variable = T.mean(self.loss.variable)
 
 
 class CategoricalCrossEntropy(Loss):
     """writeme"""
-    def __init__(self, name):
+    def __init__(self, name, weighted=False):
         # Input Validation
-        Loss.__init__(self, name=name)
+        Loss.__init__(self, name=name, weighted=weighted)
         self.prediction = core.Port(
             name=self.__own__("prediction"))
         self.target = core.Port(
             name=self.__own__("target"))
+        self.weights = None
+        if weighted:
+            self.weights = core.Port(
+                name=self.__own__("weights"), shape=[])
 
     @property
     def inputs(self):
@@ -266,4 +285,6 @@ class CategoricalCrossEntropy(Loss):
 
         loss = T.nnet.categorical_crossentropy(prediction, target)
         self.loss.variable = loss
+        if self.weights:
+            self.loss.variable *= self.weights.variable
         self.cost.variable = T.mean(loss)
