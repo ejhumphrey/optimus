@@ -255,7 +255,7 @@ class MeanSquaredError(Loss):
         self.cost.variable = T.mean(self.loss.variable)
 
 
-class CategoricalCrossEntropy(Loss):
+class CrossEntropy(Loss):
     """writeme"""
     def __init__(self, name, weighted=False):
         # Input Validation
@@ -283,7 +283,8 @@ class CategoricalCrossEntropy(Loss):
         assert self.target.variable, "Port error: 'target' not set."
         target = self.target.variable
 
-        loss = T.nnet.categorical_crossentropy(prediction, target)
+        loss = -T.mean(target * T.log(prediction)
+                       + (1.0 - target) * T.log(1.0 - prediction), axis=1)
         self.loss.variable = loss
         if self.weights:
             loss *= self.weights.variable
