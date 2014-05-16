@@ -92,10 +92,8 @@ class NegativeLogLikelihood(Loss):
             name=self.__own__("likelihood"))
         self.target_idx = core.Port(
             name=self.__own__("target_idx"), shape=[])
-        self.weights = None
-        if weighted:
-            self.weights = core.Port(
-                name=self.__own__("weights"), shape=[])
+        self.weights = core.Port(name=self.__own__("weights"),
+                                 shape=[]) if weighted else False
 
     @property
     def inputs(self):
@@ -230,16 +228,17 @@ class MeanSquaredError(Loss):
             name=self.__own__("prediction"))
         self.target = core.Port(
             name=self.__own__("target"))
-        self.weights = None
-        if weighted:
-            self.weights = core.Port(
-                name=self.__own__("weights"), shape=[])
+        self.weights = core.Port(name=self.__own__("weights"),
+                                 shape=[]) if weighted else False
 
     @property
     def inputs(self):
         """Return a list of all active Outputs in the node."""
         # Filter based on what is set / active?
-        return dict([(v.name, v) for v in [self.prediction, self.target]])
+        ports = [self.prediction, self.target]
+        if self.weights:
+            ports.append(self.weights)
+        return dict([(v.name, v) for v in ports])
 
     def transform(self):
         """writeme"""
@@ -265,16 +264,17 @@ class CategoricalCrossEntropy(Loss):
             name=self.__own__("prediction"))
         self.target = core.Port(
             name=self.__own__("target"))
-        self.weights = None
-        if weighted:
-            self.weights = core.Port(
-                name=self.__own__("weights"), shape=[])
+        self.weights = core.Port(name=self.__own__("weights"),
+                                 shape=[]) if weighted else None
 
     @property
     def inputs(self):
         """Return a list of all active Outputs in the node."""
         # Filter based on what is set / active?
-        return dict([(v.name, v) for v in [self.prediction, self.target]])
+        ports = [self.prediction, self.target]
+        if self.weights:
+            ports.append(self.weights)
+        return dict([(v.name, v) for v in ports])
 
     def transform(self):
         """writeme"""
@@ -286,5 +286,5 @@ class CategoricalCrossEntropy(Loss):
         loss = T.nnet.categorical_crossentropy(prediction, target)
         self.loss.variable = loss
         if self.weights:
-            self.loss.variable *= self.weights.variable
+            loss *= self.weights.variable
         self.cost.variable = T.mean(loss)
