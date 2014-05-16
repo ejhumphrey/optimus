@@ -9,6 +9,7 @@ import os
 from . import json
 from .core import JObject
 from .core import Port
+from optimus.util import concatenate_data
 
 
 def named_list(items):
@@ -42,6 +43,10 @@ class ConnectionManager(object):
         if not source.name in self._connection_map:
             self._connection_map[source.name] = list()
         self._connection_map[source.name].append(sink.name)
+        if sink is None:
+            raise ValueError(
+                "Sink for source ('%s') does not exist! "
+                "Did you forget to create it?" % source.name)
 
     @property
     def connections(self):
@@ -389,3 +394,39 @@ class Driver(object):
                                 "%s.json" % self.log_file)
         with open(log_file, 'w') as fp:
             json.dump(self._stats, fp, indent=2)
+
+
+class MultiSourceDriver(Driver):
+
+    def fit(self, sources, hyperparams, max_iter=10000, save_freq=250,
+            print_freq=50):
+        """Fit the internal graph to the given data source."""
+        self._stats.update(
+            checkpoints=[],
+            start_time=time.asctime(),
+            hyperparams=hyperparams,
+            max_iter=max_iter,
+            save_freq=save_freq)
+
+        if save_freq is None or save_freq <= 0:
+            save_freq = np.inf
+
+        param_file_fmt = "%%s-%%0%dd-%s.npz" % (np.ceil(np.log10(max_iter)+1),
+                                                self.TIME_FMT)
+        try:
+            for n_iter in xrange(max_iter):
+                data = concatenate_data([s.next() for s in sources])
+                data.update(**hyperparams)
+                outputs = self.graph(**data)
+                self.update_stats(n_iter, outputs[0])
+                if n_iter > 0 and (n_iter % save_freq) == 0:
+                    if not self.output_directory is None:
+                        self._save_params(n_iter, param_file_fmt)
+                if (n_iter % print_freq) == 0:
+                    self.print_last_stats()
+                if not np.isfinite(outputs[0]):
+                    print "Caught a non-finite loss at iteration: %d " % n_iter
+                    break
+
+        except KeyboardInterrupt:
+            print "Stopping early after %d iterations" % n_iter

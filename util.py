@@ -45,3 +45,27 @@ def array_stepper(value, length, stride=1, axis=0,
         yield sample.transpose(axes_reorder)
         idx += stride
         sample = value[idx:idx + length]
+
+
+def concatenate_data(batches):
+    """Concatenate a set of batches.
+
+    Parameters
+    ----------
+    batches: list
+        A set of batches to combine.
+
+    Returns
+    -------
+    batch: dict
+        Combination of the input batches.
+    """
+    result = dict()
+    for batch in batches:
+        for key in batch:
+            if not key in result:
+                result[key] = list()
+            result[key].append(batch[key])
+    for key in result:
+        result[key] = np.concatenate(result[key], axis=0)
+    return result
