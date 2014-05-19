@@ -312,7 +312,9 @@ class Driver(object):
     """
     TIME_FMT = "%04d-%02d-%02d_%02dh%02dm%02ds"
 
-    def __init__(self, graph, name, output_directory=None, log_file='',
+    def __init__(self, graph, name,
+                 output_directory=None,
+                 log_file='training_stats.json',
                  init_param_file=None):
         self.graph = graph
         self.log_file = log_file
