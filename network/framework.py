@@ -70,7 +70,7 @@ class Graph(JObject):
 
     def __init__(self, name, inputs, nodes, connections, outputs,
                  losses=None, updates=None, constraints=None,
-                 chunk_size=250):
+                 chunk_size=250, verbose=False):
         """writeme."""
 
         self.name = name
@@ -78,6 +78,7 @@ class Graph(JObject):
         self._nodes = nodes
         self._connections = connections
         self._outputs = outputs
+        self.verbose = verbose
         if losses is None:
             losses = list()
         self._losses = losses
@@ -177,6 +178,7 @@ class Graph(JObject):
             input_ports.update(node.inputs)
         for port in self.outputs.values():
             if not port is None:
+                port.reset()
                 input_ports[port.name] = port
 
         local_map = self._connections.copy()
@@ -191,12 +193,15 @@ class Graph(JObject):
                     sinks = local_map.pop(source_name)
                     for sink_name in sinks:
                         nothing_happened = False
-                        print "Connecting %s -> %s" % (source_name, sink_name)
+                        if self.verbose:
+                            print "Connecting %s -> %s" % (source_name,
+                                                           sink_name)
                         input_ports[sink_name].connect(
                             input_ports[source_name])
             for node in modules:
                 if node.is_ready():
-                    print "Transforming %s" % node
+                    if self.verbose:
+                        print "Transforming %s" % node
                     node.transform()
                     self.params.update(node.params)
                     input_ports.update(node.params)
