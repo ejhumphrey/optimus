@@ -40,6 +40,22 @@ from .framework import load
 from .framework import random_init
 
 
+def __str_convert(obj):
+    """Convert unicode to strings.
+
+    Known issue: Uses dictionary comprehension, and is incompatible with 2.6.
+    """
+    if isinstance(obj, dict):
+        return {__str_convert(key): __str_convert(value)
+                for key, value in obj.iteritems()}
+    elif isinstance(obj, list):
+        return [__str_convert(element) for element in obj]
+    elif isinstance(obj, unicode):
+        return obj.encode('utf-8')
+    else:
+        return obj
+
+
 def __jsonSupport__():
     """writeme."""
     def encode(self, jsonObject):
@@ -54,6 +70,7 @@ def __jsonSupport__():
         #     if k.startswith("_"):
         #         continue
         #     filt_obj[k] = obj[k]
+        obj = __str_convert(obj)
         if 'type' in obj:
             return eval(obj.pop('type')).__json_init__(**obj)
         return obj
