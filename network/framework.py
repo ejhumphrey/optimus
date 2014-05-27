@@ -107,7 +107,7 @@ class Graph(JObject):
             if port == self.TOTAL_LOSS:
                 self.outputs[self.TOTAL_LOSS] = None
             else:
-                self.outputs[port.name] = None
+                self.outputs[port.name] = port
 
         self._fx = None
         self.__wire__()
@@ -173,9 +173,11 @@ class Graph(JObject):
             input_ports.update(node.inputs)
         # ...losses...
         for node in self.losses.values():
-            # TODO(ejhumphrey): Known bug with losses...
-            # node.reset()
+            node.reset()
             input_ports.update(node.inputs)
+        for port in self.outputs.values():
+            if not port is None:
+                input_ports[port.name] = port
 
         local_map = self._connections.copy()
         # print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
@@ -214,8 +216,13 @@ class Graph(JObject):
 
         # Map configured ports to the requested outputs.
         for port_name in self.outputs:
+            # TODO(ejhumphrey): assert port_name is a valid variable
             if port_name in self.ports:
                 self.outputs[port_name] = self.ports[port_name]
+            else:
+                raise ValueError(
+                    "Expected '%s' as an output, but was not created "
+                    "by the graph." % port_name)
 
         # Make sure that the loss is actually set when requested as an output.
         if not self.outputs.get(self.TOTAL_LOSS, True):
@@ -245,7 +252,8 @@ class Graph(JObject):
         # is an np.ndarray? if not, map it over all chunks. This should be a
         # separate function though...
         # if self.chunk_size is None and len(kwargs.values()[0]) > ...?
-        return self._fx(*args, **kwargs)
+        return OrderedDict([(k, v) for k, v in zip(self.outputs.keys(),
+                                                   self._fx(*args, **kwargs))])
 
     def save_param_values(self, filename):
         """Serialize the graph's parameter values to disk.
@@ -327,8 +335,7 @@ class Driver(object):
             self.graph.load_param_values(init_param_file)
 
         if not output_directory is None:
-            self.output_directory = os.path.join(
-                output_directory, graph.name, self.name)
+            self.output_directory = os.path.join(output_directory, self.name)
             if not os.path.exists(self.output_directory):
                 os.makedirs(self.output_directory)
             def_file = os.path.join(self.output_directory,
@@ -340,6 +347,8 @@ class Driver(object):
     def fit(self, source, hyperparams, max_iter=10000, save_freq=250,
             print_freq=50):
         """Fit the internal graph to the given data source."""
+        assert Graph.TOTAL_LOSS in self.graph.outputs
+
         self._stats.update(
             checkpoints=[],
             start_time=time.asctime(),
@@ -356,7 +365,7 @@ class Driver(object):
             for n_iter, data in enumerate(source):
                 data.update(**hyperparams)
                 outputs = self.graph(**data)
-                self.update_stats(n_iter, outputs[0])
+                self.update_stats(n_iter, outputs[Graph.TOTAL_LOSS])
                 if n_iter > 0 and (n_iter % save_freq) == 0:
                     if not self.output_directory is None:
                         self._save_params(n_iter, param_file_fmt)
@@ -364,7 +373,7 @@ class Driver(object):
                     self.print_last_stats()
                 if n_iter >= max_iter:
                     break
-                if not np.isfinite(outputs[0]):
+                if not np.isfinite(outputs[Graph.TOTAL_LOSS]):
                     print "Caught a non-finite loss at iteration: %d " % n_iter
                     break
 
