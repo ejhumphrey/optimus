@@ -163,6 +163,8 @@ class Queue(object):
             # Apply the Transformer pipeline
             for fx in self._transformers:
                 entity = fx(entity)
+                if entity is None:
+                    break
             # Drop null datapoints
             if entity is None:
                 continue
