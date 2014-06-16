@@ -340,7 +340,8 @@ class Driver(object):
             self.graph.load_param_values(init_param_file)
 
         if not output_directory is None:
-            self.output_directory = os.path.join(output_directory, self.name)
+            # self.output_directory = os.path.join(output_directory, self.name)
+            self.output_directory = output_directory
             if not os.path.exists(self.output_directory):
                 os.makedirs(self.output_directory)
             def_file = os.path.join(self.output_directory,
