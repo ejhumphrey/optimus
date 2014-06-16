@@ -45,7 +45,10 @@ class Cache(object):
         """Swap an existing key-value pair with a new one."""
         # Refresh on success.
         if np.random.binomial(1, p=prob):
-            del self._data[key]
+            if key in self._data:
+                del self._data[key]
+            # else:
+            #    print "Tried to remove a key that doesn't exist? %s" % key
             self.__update_selector__()
 
     def next(self):
@@ -103,7 +106,8 @@ class Queue(object):
 
     """
     def __init__(self, source, batch_size, cache_size=1000, refresh_prob=0.01,
-                 transformers=None, selector=None, serializer=None):
+                 transformers=None, source_selector=None, batch_selector=None,
+                 serializer=None):
         """writeme"""
         self._source = source
         self.batch_size = batch_size
@@ -114,9 +118,9 @@ class Queue(object):
         self._transformers = transformers
 
         # If None, create default selector
-        if selector is None:
-            selector = selectors.permuted_iteritems
-        self._selector = selector(self._source)
+        if source_selector is None:
+            source_selector = selectors.permuted_iteritems
+        self._source_selector = source_selector(self._source)
 
         if serializer is None:
             serializer = unpack_entities
@@ -129,7 +133,7 @@ class Queue(object):
             cache_size = len(source)
             refresh_prob = 0
 
-        self.cache = Cache(refresh_prob=refresh_prob, selector=selector)
+        self.cache = Cache(refresh_prob=refresh_prob, selector=batch_selector)
         self._cache_size = cache_size
         self.populate(cache_size > 1)
 
@@ -141,7 +145,7 @@ class Queue(object):
             sys.stdout.flush()
         dots = 0
         while len(self.cache) < self._cache_size:
-            key, entity = self._selector.next()
+            key, entity = self._source_selector.next()
             self.cache.add(key, entity)
             if verbose and (10 * len(self.cache) / float(count)) > dots:
                 dots += 1
@@ -162,9 +166,9 @@ class Queue(object):
             key, entity = self.cache.next()
             # Apply the Transformer pipeline
             for fx in self._transformers:
-                entity = fx(entity)
                 if entity is None:
                     break
+                entity = fx(entity)
             # Drop null datapoints
             if entity is None:
                 continue
