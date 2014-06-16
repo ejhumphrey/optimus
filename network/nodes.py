@@ -355,8 +355,8 @@ class MultiSoftmax(Node):
             shape=input_shape, name=self.__own__('input'))
         self.output = core.Port(
             shape=output_shape, name=self.__own__('output'))
-        self.dropout = core.Port(
-            shape=None, name=self.__own__('dropout'))
+        self.dropout = None  # core.Port(
+            # shape=None, name=self.__own__('dropout')) if dropout else None
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self.bias = core.Parameter(
