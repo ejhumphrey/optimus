@@ -30,6 +30,8 @@ from .losses import L1Magnitude
 from .losses import L2Magnitude
 from .losses import MeanSquaredError
 from .losses import CrossEntropy
+from .losses import LikelihoodMargin
+from .losses import ClassificationError
 
 from .framework import ConnectionManager
 from .framework import Graph

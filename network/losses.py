@@ -2,8 +2,7 @@
 
 import theano.tensor as T
 from . import core
-from . import FLOATX
-from . import functions
+from .functions import sigmoid
 
 
 class Loss(core.JObject):
@@ -146,6 +145,97 @@ class MultiNegativeLogLikelihood(NegativeLogLikelihood):
             losses.append(loss_idx.dimshuffle(0, 'x'))
 
         self.loss.variable = -T.log(T.concatenate(losses, axis=1))
+        self.cost.variable = T.mean(self.loss.variable)
+
+
+class LikelihoodMargin(Loss):
+    """
+
+    """
+    def __init__(self, name, knee=100.0, weighted=False):
+        # Input Validation
+        Loss.__init__(self, name=name, weighted=weighted, knee=knee)
+        self.likelihood = core.Port(
+            name=self.__own__("likelihood"))
+        self.target_idx = core.Port(
+            name=self.__own__("target_idx"), shape=[])
+        self.margin = core.Port(
+            name=self.__own__("margin"))
+        self.weights = core.Port(name=self.__own__("weights"),
+                                 shape=[]) if weighted else False
+        self.knee = knee
+
+    @property
+    def inputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        ports = [self.likelihood, self.target_idx, self.margin]
+        if self.weights:
+            ports.append(self.weights)
+        return dict([(v.name, v) for v in ports])
+
+    def transform(self):
+        """writeme"""
+        assert self.likelihood.variable, "Port error: 'likelihood' not set."
+        energy = -T.log(self.likelihood.variable)
+        assert self.target_idx.variable, "Port error: 'target_idx' not set."
+        target_idx = self.target_idx.variable
+        assert self.margin.variable, "Port error: 'margin' not set."
+        margin = self.margin.variable
+
+        batch_idx = T.arange(target_idx.shape[0], dtype='int32')
+        target_energies = energy[batch_idx, target_idx]
+        offset_mask = T.eq(energy, target_energies.dimshuffle(0, 'x'))
+        energy += energy.max(axis=1).dimshuffle(0, 'x')*offset_mask
+        moia_energies = T.min(energy, axis=1)
+        xarg = margin + target_energies - moia_energies
+        self.loss.variable = T.log(1.0 + T.exp(self.knee * xarg)) / self.knee
+        if self.weights:
+            self.loss.variable *= self.weights.variable
+        self.cost.variable = T.mean(self.loss.variable)
+
+
+class ClassificationError(Loss):
+    """writeme"""
+    def __init__(self, name, weighted=False, mode='likelihood'):
+        # Input Validation
+        Loss.__init__(self, name=name, weighted=weighted)
+        self.likelihood = core.Port(
+            name=self.__own__("likelihood"))
+        self.target_idx = core.Port(
+            name=self.__own__("target_idx"), shape=[])
+        self.weights = core.Port(name=self.__own__("weights"),
+                                 shape=[]) if weighted else False
+        self.mode = mode
+
+    @property
+    def inputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        ports = [self.likelihood, self.target_idx]
+        if self.weights:
+            ports.append(self.weights)
+        return dict([(v.name, v) for v in ports])
+
+    def transform(self):
+        """writeme"""
+        assert self.likelihood.variable, "Port error: 'likelihood' not set."
+        # likelihood = self.likelihood.variable
+        likelihood = -T.log(self.likelihood.variable)
+        assert self.target_idx.variable, "Port error: 'target_idx' not set."
+        target_idx = self.target_idx.variable
+
+        batch_idx = T.arange(target_idx.shape[0], dtype='int32')
+        target_probs = likelihood[batch_idx, target_idx]
+        offset_mask = T.eq(likelihood, target_probs.dimshuffle(0, 'x'))
+        # likelihood -= likelihood.max(axis=1).dimshuffle(0, 'x')*offset_mask
+        likelihood += likelihood.max(axis=1).dimshuffle(0, 'x')*offset_mask
+        # moia_probs = T.max(likelihood, axis=1)
+        moia_probs = T.min(likelihood, axis=1)
+        # self.loss.variable = sigmoid((moia_probs - target_probs)*likelihood.shape[1])
+        self.loss.variable = sigmoid(target_probs - moia_probs)
+        if self.weights:
+            self.loss.variable *= self.weights.variable
         self.cost.variable = T.mean(self.loss.variable)
 
 
