@@ -9,46 +9,54 @@ import theano.tensor as T
 
 
 def linear(x):
-    """ Write my LaTeX form."""
+    """Write my LaTeX form."""
     return x
 
 
 def relu(x):
-    """ Write my LaTeX form."""
+    """Write my LaTeX form."""
     return 0.5 * (x + T.abs_(x))
 
 
 def tanh(x):
-    """ Write my LaTeX form."""
+    """Write my LaTeX form."""
     return T.tanh(x)
 
 
 def sigmoid(x):
-    """ Write my LaTeX form."""
+    """Write my LaTeX form."""
     return T.nnet.sigmoid(x)
 
 
 def soft_shrink(x, threshold, Q):
-    """ Write my LaTeX form."""
+    """Write my LaTeX form."""
     raise NotImplementedError("'soft_shrink' is not implemented yet.")
 
 
 def hard_shrink(x, threshold):
-    """ Write my LaTeX form."""
+    """Write my LaTeX form."""
     raise NotImplementedError("'hard_shrink' is not implemented yet.")
 
 
-def soft_hinge(x, margin, knee=1.0):
-    """
-    x : symbolic, or scalar
-        typically, the independent variable
-    margin : scalar, or symbolic
-        typically, the margin or offset
-    knee : scalar
-        knee of the log-approx
+def soft_relu(x, margin, knee=1.0):
+    """Log-approximation of half-wave rectification (ReLU)
 
-    note: standard behavior is monotonically increasing; swapping a and b
+    Note: standard behavior is monotonically increasing; swapping x and margin
         will flip the function horizontally.
+
+    Parameters
+    ----------
+    x: symbolic type
+        Typically, the independent variable.
+    margin: scalar (symbolic or real-valued)
+        Typically, the margin or offset.
+    knee: scalar (symbolic or real-valued)
+        Knee of the log-approximation.
+
+    Returns
+    -------
+    y: symbolic type
+        Dependent variable.
     """
     return T.log(1 + T.exp(knee * (x - margin))) / knee
 
