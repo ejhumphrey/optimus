@@ -185,9 +185,12 @@ class LikelihoodMargin(Loss):
 
         batch_idx = T.arange(target_idx.shape[0], dtype='int32')
         target_energies = energy[batch_idx, target_idx]
-        offset_mask = T.eq(energy, target_energies.dimshuffle(0, 'x'))
-        energy += energy.max(axis=1).dimshuffle(0, 'x')*offset_mask
-        moia_energies = T.min(energy, axis=1)
+        target_mask = T.zeros_like(energy)
+        target_mask = T.set_subtensor(target_mask[batch_idx, target_idx], 1.0)
+        other_mask = 1.0 - target_mask
+        # Add twice the current highest value
+        moia_energies = T.min(
+            other_mask*energy + 2*target_mask*energy.max(), axis=1)
         xarg = margin + target_energies - moia_energies
         self.loss.variable = T.log(1.0 + T.exp(self.knee * xarg)) / self.knee
         if self.weights:
@@ -220,20 +223,22 @@ class ClassificationError(Loss):
     def transform(self):
         """writeme"""
         assert self.likelihood.variable, "Port error: 'likelihood' not set."
-        # likelihood = self.likelihood.variable
-        likelihood = -T.log(self.likelihood.variable)
+        energy = -T.log(self.likelihood.variable)
+
         assert self.target_idx.variable, "Port error: 'target_idx' not set."
         target_idx = self.target_idx.variable
 
         batch_idx = T.arange(target_idx.shape[0], dtype='int32')
-        target_probs = likelihood[batch_idx, target_idx]
-        offset_mask = T.eq(likelihood, target_probs.dimshuffle(0, 'x'))
-        # likelihood -= likelihood.max(axis=1).dimshuffle(0, 'x')*offset_mask
-        likelihood += likelihood.max(axis=1).dimshuffle(0, 'x')*offset_mask
-        # moia_probs = T.max(likelihood, axis=1)
-        moia_probs = T.min(likelihood, axis=1)
-        # self.loss.variable = sigmoid((moia_probs - target_probs)*likelihood.shape[1])
-        self.loss.variable = sigmoid(target_probs - moia_probs)
+        target_energy = energy[batch_idx, target_idx]
+
+        target_mask = T.zeros_like(energy)
+        target_mask = T.set_subtensor(target_mask[batch_idx, target_idx], 1.0)
+        other_mask = 1.0 - target_mask
+        # Add twice the current highest value
+        moia_energy = T.min(
+            other_mask*energy + 2*target_mask*energy.max(), axis=1)
+
+        self.loss.variable = sigmoid(target_energy - moia_energy)
         if self.weights:
             self.loss.variable *= self.weights.variable
         self.cost.variable = T.mean(self.loss.variable)
