@@ -47,8 +47,6 @@ class Cache(object):
         if np.random.binomial(1, p=prob):
             if key in self._data:
                 del self._data[key]
-            # else:
-            #    print "Tried to remove a key that doesn't exist? %s" % key
             self.__update_selector__()
 
     def next(self):
