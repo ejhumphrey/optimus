@@ -3,6 +3,7 @@
 import theano.tensor as T
 from . import core
 from .functions import sigmoid
+from .functions import relu
 
 
 class Loss(core.JObject):
@@ -152,9 +153,9 @@ class LikelihoodMargin(Loss):
     """
 
     """
-    def __init__(self, name, knee=100.0, weighted=False):
+    def __init__(self, name, mode='l1', weighted=False):
         # Input Validation
-        Loss.__init__(self, name=name, weighted=weighted, knee=knee)
+        Loss.__init__(self, name=name, weighted=weighted, mode=mode)
         self.likelihood = core.Port(
             name=self.__own__("likelihood"))
         self.target_idx = core.Port(
@@ -163,7 +164,7 @@ class LikelihoodMargin(Loss):
             name=self.__own__("margin"))
         self.weights = core.Port(name=self.__own__("weights"),
                                  shape=[]) if weighted else False
-        self.knee = knee
+        self.mode = mode
 
     @property
     def inputs(self):
@@ -188,11 +189,13 @@ class LikelihoodMargin(Loss):
         target_mask = T.zeros_like(energy)
         target_mask = T.set_subtensor(target_mask[batch_idx, target_idx], 1.0)
         other_mask = 1.0 - target_mask
-        # Add twice the current highest value
+        # Find the minimum energies after setting the targets to 2*max
         moia_energies = T.min(
             other_mask*energy + 2*target_mask*energy.max(), axis=1)
-        xarg = margin + target_energies - moia_energies
-        self.loss.variable = T.log(1.0 + T.exp(self.knee * xarg)) / self.knee
+        loss = relu(margin + target_energies - moia_energies)
+        if self.mode == 'l2':
+            loss = 0.5*T.pow(loss, 2.0)
+        self.loss.variable = loss
         if self.weights:
             self.loss.variable *= self.weights.variable
         self.cost.variable = T.mean(self.loss.variable)
