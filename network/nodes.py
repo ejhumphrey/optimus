@@ -148,7 +148,8 @@ class Affine(Node):
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
                 size=self.bias.shape, p=1.0 - dropout)
-            z_out *= selector.dimshuffle('x', 0) * (dropout + 0.5)
+            # Scale output by the ratio of the number of units that are 'on'.
+            z_out *= selector.dimshuffle('x', 0) / (1.0 - dropout)
 
         output_shape = list(self.output.shape)[1:]
         self.output.variable = T.reshape(
