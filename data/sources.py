@@ -49,9 +49,7 @@ class File(h5py.File):
         h5py.File.close(self)
 
     def get(self, key):
-        """
-        Fetch the Group for a given key.
-        """
+        """Fetch the entity for a given key."""
         addr = self._keymap.get(key)
         raw_group = h5py.File.get(self, addr)
         raw_key = raw_group.attrs.get("key")
@@ -116,8 +114,8 @@ class File(h5py.File):
         """Return a list of all keys in the File."""
         return self._keymap.keys()
 
-    def paths(self):
-        """writeme."""
+    def __paths__(self):
+        """Return a list of all absolute archive paths in the File."""
         return self._keymap.values()
 
     def __len__(self):
