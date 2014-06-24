@@ -290,7 +290,7 @@ class Conv3D(Node):
                 size=output_shape,
                 p=1.0 - dropout)
 
-            output *= selector.dimshuffle('x', 0, 'x', 'x') * (dropout + 0.5)
+            output *= selector.dimshuffle('x', 0, 'x', 'x') / (1.0 - dropout)
 
         output = downsample.max_pool_2d(
             output, self.pool_shape, ignore_border=False)
