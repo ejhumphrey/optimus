@@ -6,56 +6,6 @@ import numpy as np
 import sys
 
 
-class Cache(object):
-    """Basically, a dictionary with some bonus methods."""
-    def __init__(self, refresh_prob, selector=None):
-        """writeme."""
-
-        if selector is None:
-            selector = selectors.permuted_iteritems
-        self._selector = selector
-
-        self._data = dict()
-        self._refresh_prob = refresh_prob
-        self._item_gen = self._selector(self._data)
-
-    def __update_selector__(self):
-        self._item_gen = self._selector(self._data)
-
-    def get(self, key):
-        """Fetch the value for a given key."""
-        return self._data.get(key)
-
-    def add(self, key, entity):
-        """writeme."""
-        self._data[key] = entity
-        self.__update_selector__()
-
-    def keys(self):
-        """writeme."""
-        return self._data.keys()
-
-    def __len__(self):
-        return len(self._data)
-
-    def __getitem__(self, key):
-        return self.get(key)
-
-    def remove(self, key, prob=1):
-        """Swap an existing key-value pair with a new one."""
-        # Refresh on success.
-        if np.random.binomial(1, p=prob):
-            if key in self._data:
-                del self._data[key]
-            self.__update_selector__()
-
-    def next(self):
-        """Return the next item from the internal selector."""
-        key, entity = self._item_gen.next()
-        self.remove(key, prob=self._refresh_prob)
-        return key, entity
-
-
 def unpack_entities(entities):
     """Turn a set of entities into key-np.ndarray objects.
 
@@ -82,31 +32,98 @@ def unpack_entities(entities):
     return data
 
 
+class Cache(object):
+    """Dictionary-like object with iterator methods."""
+    def __init__(self, refresh_prob, selector=None):
+        """writeme."""
+
+        if selector is None:
+            selector = selectors.permuted_iteritems
+        self._selector = selector
+
+        self._data = dict()
+        self._refresh_prob = refresh_prob
+        self._item_gen = self._selector(self._data)
+
+    def __update_selector__(self):
+        self._item_gen = self._selector(self._data)
+
+    def get(self, key):
+        """Fetch the value for a given key."""
+        return self._data.get(key)
+
+    def add(self, key, entity):
+        """Add a key-value pair to the object."""
+        self._data[key] = entity
+        self.__update_selector__()
+
+    def keys(self):
+        """writeme."""
+        return self._data.keys()
+
+    def __len__(self):
+        return len(self._data)
+
+    def __getitem__(self, key):
+        return self.get(key)
+
+    def remove(self, key, prob=1):
+        """Swap an existing key-value pair with a new one."""
+        # Refresh on binomial success.
+        if np.random.binomial(1, p=prob):
+            if key in self._data:
+                del self._data[key]
+            self.__update_selector__()
+
+    def next(self):
+        """Return the next item from the internal selector."""
+        key, entity = self._item_gen.next()
+        self.remove(key, prob=self._refresh_prob)
+        return key, entity
+
+
 class Queue(object):
     """
-    There are two levels of data selection:
-    - From the source, default=permutation
-    - From the local cache, default=
-
-
 
     Data Pipeline:
 
      source
-      |
-    Selector
-      |
+      | (source_selector)
+    Cache
+      | (batch_selector)
     Transformer(s)
       |
     Serializer
       |
-     result
+     batch
 
     """
     def __init__(self, source, batch_size, cache_size=1000, refresh_prob=0.01,
                  transformers=None, source_selector=None, batch_selector=None,
                  serializer=None):
-        """writeme"""
+        """
+        Parameters
+        ----------
+        source: dict-like object
+            Data source containing key-entity pairs.
+        batch_size: int
+            Number of objects to return at each call to next()
+        cache_size: int, default=1000
+            Number of objects to store locally.
+        refresh_prob: float, default=0.01
+            Probability that a cached datapoint will be replaced.
+        transformers: list of functions
+            List of entity transformers to call in the fetch pipeline.
+        source_selector: generator
+            Selection algorithm for the data source; by default, randomly
+            permutes items.
+        batch_selector: generator
+            Selection algorithm from the local cache; by default, randomly
+            permutes items.
+        serializer: function
+            Optionally optimized method to serialize a list of entities to a
+            dictionary.
+        """
         self._source = source
         self.batch_size = batch_size
 
@@ -156,7 +173,7 @@ class Queue(object):
     def next(self):
         """Return the next batch of datapoints.
 
-        Any datapoints in the pipeline that return 'None' are discarded.
+        Any datapoints in the pipeline that equal 'None' are dropped.
         """
         data_buffer = dict()
         batch_idx = 0
