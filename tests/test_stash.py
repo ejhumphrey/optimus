@@ -3,12 +3,11 @@
 
 import unittest
 import tempfile as tmp
-import os
 import numpy as np
-import optimus.data as D
+from optimus import stash
 
 
-class DataTests(unittest.TestCase):
+class StashTests(unittest.TestCase):
 
     def setUp(self):
         pass
@@ -17,7 +16,8 @@ class DataTests(unittest.TestCase):
         pass
 
     def test_entity(self):
-        entity = D.Entity(a=3, b='im_a_string', c=[1, 2, 3], d=np.arange(5))
+        entity = stash.Entity(
+            a=3, b='im_a_string', c=[1, 2, 3], d=np.arange(5))
 
         self.assertEqual(
             entity.a.value,
@@ -46,11 +46,11 @@ class DataTests(unittest.TestCase):
 
         key = 'my_key'
         fpath = tmp.mktemp(suffix=".hdf5", dir=tmp.gettempdir())
-        fh = D.File(fpath)
+        fh = stash.Stash(fpath)
         fh.add(key, entity)
         fh.close()
 
-        fh = D.File(fpath)
+        fh = stash.Stash(fpath)
         entity2 = fh.get(key)
 
         self.assertEqual(
@@ -79,7 +79,7 @@ class DataTests(unittest.TestCase):
         fh.add(key, entity2, True)
         fh.close()
 
-        fh = D.File(fpath)
+        fh = stash.Stash(fpath)
         entity3 = fh.get(key)
         self.assertEqual(len(fh), 1)
         self.assertEqual(entity3.a.value, 4)
