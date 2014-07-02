@@ -1,41 +1,99 @@
-"""writeme"""
+"""Data stream generators.
+
+All data streams are created via the same interface:
+
+fx = generator(obj, keys=None, getitem=None, epochs=None, **kwargs), where
+    obj: dict-like
+        Object over which to iterate
+    keys: list
+        Keys for this object, defaults to all
+    getitem: function
+        Operates in the form "value = getitem(obj, key)"; by default, this
+        is simply "value = obj[key]"
+    epochs: int, or None
+        Number of times to iterate over the object; if None, loops forever.
+    kwargs: dict
+        Additional arguments to pass to getitem.
+"""
 
 import numpy as np
 
 
-def iteritems(source):
-    """Infinite iteritem generator."""
-    keys = source.keys()
-    idx = 0
-    while True:
-        yield keys[idx], source.get(keys[idx])
+def _getitem(obj, key):
+    """
+    Parameters
+    ----------
+    obj: dict-like
+        Key-value mapping.
+
+    """
+    return obj.get(key)
+
+
+def iterate(obj, keys=None, getitem=_getitem, epochs=None):
+    """Infinite data stream.
+
+    Yields
+    ------
+    key: str or hashable type
+        Pointer to an item.
+    value: object
+        Item for the returned key.
+    """
+    if keys is None:
+        keys = obj.keys()
+    idx, total_epochs = 0, 0
+    done = False
+    while not done:
+        yield keys[idx], getitem(obj, keys[idx])
         idx += 1
         if idx >= len(keys):
             idx = 0
+            if not epochs is None:
+                total_epochs += 1
+                done = total_epochs >= epochs
 
 
-def sorted_iteritems(source):
-    """Like iteritems, but keys are sorted first."""
-    keys = source.keys()
+def sort(obj, keys=None, getitem=_getitem, epochs=None):
+    """Infinite data stream of sorted keys.
+
+    Yields
+    ------
+    key: str or hashable type
+        Pointer to an item.
+    value: object
+        Item for the returned key.
+    """
+    if keys is None:
+        keys = obj.keys()
+
     keys.sort()
-    idx = 0
-    while True:
-        yield keys[idx], source.get(keys[idx])
-        idx += 1
-        if idx >= len(keys):
-            idx = 0
+    return iterate(obj, keys, getitem=getitem, epochs=epochs)
 
 
-def permuted_iteritems(source):
-    """Like iteritems, but a permutation. Loops forever."""
-    keys = source.keys()
+def permute(obj, keys=None, getitem=_getitem, epochs=None):
+    """Infinite data stream of sorted keys.
+
+    Yields
+    ------
+    key: str or hashable type
+        Pointer to an item.
+    value: object
+        Item for the returned key.
+    """
+    if keys is None:
+        keys = obj.keys()
     order = np.arange(len(keys))
     np.random.shuffle(order)
-    idx = 0
-    while True:
+    idx, total_epochs = 0, 0
+    done = False
+    while not done:
         key = keys[order[idx]]
-        yield key, source.get(key)
+        yield key, getitem(obj, key)
         idx += 1
         if idx >= len(keys):
             idx = 0
             np.random.shuffle(order)
+            if not epochs is None:
+                total_epochs += 1
+                done = total_epochs >= epochs
