@@ -82,15 +82,13 @@ class Affine(Node):
       (i.e., a fully-connected non-linear projection)
 
     """
-    def __init__(self, name, input_shape, output_shape, act_type,
-                 dropout=False):
+    def __init__(self, name, input_shape, output_shape, act_type):
         Node.__init__(
             self,
             name=name,
             input_shape=input_shape,
             output_shape=output_shape,
-            act_type=act_type,
-            dropout=dropout)
+            act_type=act_type)
         self.act_type = act_type
 
         n_in = int(np.prod(input_shape[1:]))
@@ -101,16 +99,21 @@ class Affine(Node):
             shape=input_shape, name=self.__own__('input'))
         self.output = core.Port(
             shape=output_shape, name=self.__own__('output'))
-        self.dropout = core.Port(
-            shape=None, name=self.__own__('dropout')) if dropout else None
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self.bias = core.Parameter(
             shape=[n_out], name=self.__own__('bias'))
+        self.dropout = None
 
     # @classmethod
     # def __json_init__(cls, input_shape, output_shape, act_type):
     #     return cls(input_shape, output_shape, act_type)
+
+    def enable_dropout(self):
+        self.dropout = core.Port(shape=None, name=self.__own__('dropout'))
+
+    def disable_dropout(self):
+        self.dropout = None
 
     @property
     def inputs(self):
@@ -148,7 +151,7 @@ class Affine(Node):
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
                 size=self.bias.shape, p=1.0 - dropout)
-            # Scale output by the ratio of the number of units that are 'on'.
+            # Scale up by the ratio of the number of units that are 'off'.
             z_out *= selector.dimshuffle('x', 0) / (1.0 - dropout)
 
         output_shape = list(self.output.shape)[1:]
@@ -338,7 +341,7 @@ class Softmax(Affine):
 
 
 class MultiSoftmax(Node):
-    """Multi-Dimensional Softamx Layer"""
+    """Multi-Dimensional Softmax Layer"""
     def __init__(self, name, input_shape, output_shape, act_type):
         assert len(output_shape) == 3
         Node.__init__(
@@ -509,3 +512,91 @@ class LpDistance(Node):
         z_out = T.pow(T.pow(T.abs_(xA - xB), p).sum(axis=1), 1.0 / p)
         z_out.name = self.outputs[0]
         return {z_out.name: z_out}
+
+
+class CrossProduct(Node):
+    """
+    Affine Transform Layer
+      (i.e., a fully-connected non-linear projection)
+
+    """
+    def __init__(self, name):
+        Node.__init__(self, name=name)
+        self.input_a = core.Port(name=self.__own__('input_a'))
+        self.input_b = core.Port(name=self.__own__('input_b'))
+        self.output = core.Port(name=self.__own__('output'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
+        # i.e. dropout yes/no?
+        ports = [self.input_a, self.input_b]
+        return dict([(v.name, v) for v in ports])
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        # Filter based on what is set / active?
+        return {}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+
+        in_a = self.input_a.variable.dimshuffle(0, 1, 'x')
+        in_b = self.input_b.variable.dimshuffle(0, 'x', 1)
+
+        self.output.variable = (in_a * in_b).flatten(2)
+
+
+class Normalize(Node):
+    """
+
+    """
+    def __init__(self, name, mode='l1'):
+        Node.__init__(self, name=name, mode=mode)
+        self.input = core.Port(name=self.__own__('input'))
+        self.output = core.Port(name=self.__own__('output'))
+        self.mode = mode
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
+        # i.e. dropout yes/no?
+        ports = [self.input]
+        return dict([(v.name, v) for v in ports])
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        # Filter based on what is set / active?
+        return {}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        input_var = self.input.variable.flatten(2)
+        shape = input_var.shape
+        if self.mode == 'l1':
+            scalar = T.sum(T.abs_(input_var))
+        elif self.mode == 'l2':
+            scalar = T.sum(T.abs_(input_var))
+        self.cost.variable = var_magnitude * self.weight.variable
+        in_a = self.input_a.variable.dimshuffle(0, 1, 'x')
+        in_b = self.input_b.variable.dimshuffle(0, 'x', 1)
+
+        self.output.variable = (in_a * in_b).flatten(2)
