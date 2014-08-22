@@ -33,11 +33,11 @@ def array_stepper(value, length, stride=1, axis=0,
     if mode == 'full':
         pad = np.zeros([length] + list(value.shape[1:]))
     elif mode == 'same':
-        pad = np.zeros([length/2] + list(value.shape[1:]))
+        pad = np.zeros([length / 2] + list(value.shape[1:]))
 
     if not pad is None:
         pad[:] = fill_value
-        value = np.concatenate([pad, value, pad], axis=0)
+        value = np.concatenate([pad, value, pad[:-1]], axis=0)
 
     idx = 0
     sample = value[idx:idx + length]
