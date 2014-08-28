@@ -3,6 +3,7 @@ import numpy as np
 from theano.tensor import grad
 from collections import OrderedDict
 from theano import function
+from theano import shared
 import time
 import os
 
@@ -70,7 +71,7 @@ class Graph(JObject):
 
     def __init__(self, name, inputs, nodes, connections, outputs,
                  losses=None, updates=None, constraints=None,
-                 chunk_size=250, verbose=False):
+                 chunk_size=250, verbose=False, momentum=0):
         """writeme."""
 
         self.name = name
@@ -110,6 +111,7 @@ class Graph(JObject):
             else:
                 self.outputs[port.name] = port
 
+        self.momentum = momentum
         self._fx = None
         self.__wire__()
 
@@ -182,8 +184,9 @@ class Graph(JObject):
                 input_ports[port.name] = port
 
         local_map = self._connections.copy()
-        # print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
-        # print "Local Connection Map: \n%s" % json.dumps(local_map, indent=2)
+        # if self.verbose:
+        #     print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
+        #     print "Connection Map: \n%s" % json.dumps(local_map, indent=2)
         modules = self.nodes.values() + self.losses.values()
         # This could be smarter, but it will certainly terminate.
         while local_map:
@@ -236,7 +239,7 @@ class Graph(JObject):
                 "not been initialized." % self.TOTAL_LOSS)
 
         # Define SGD update rules
-        if self.loss.variable and self._updates:
+        if self.loss.variable and self._updates: # and not self.momentum:
             for input_name, param_names in self._updates.iteritems():
                 eta = self.inputs.get(input_name)
                 for param_name in param_names:
@@ -244,6 +247,22 @@ class Graph(JObject):
                     gparam = grad(self.loss.variable, param.variable)
                     gparam *= eta.variable
                     self.updates[param.variable] = param.variable - gparam
+
+        # elif self.loss.variable and self._updates and self.momentum:
+        #     for input_name, param_names in self._updates.iteritems():
+        #         eta = self.inputs.get(input_name)
+        #         for param_name in param_names:
+        #             param = self.params[param_name]
+        #             gparam = grad(self.loss.variable, param.variable)
+        #             gparam *= eta.variable
+
+        #             # Create an empty momentum parameter
+        #             mu = shared(param.value * 0.0)
+        #             next_mu = self.momentum * mu - gparam
+        #             next_param = param.variable + self.momentum * next_mu - gparam
+
+        #             self.updates[param.variable] = next_param
+        #             self.updates[mu] = next_mu
 
         self._fx = function(
             inputs=[x.variable for x in self._inputs],
@@ -352,7 +371,22 @@ class Driver(object):
 
     def fit(self, source, hyperparams, max_iter=10000, save_freq=250,
             print_freq=50):
-        """Fit the internal graph to the given data source."""
+        """Fit the internal graph to the given data source.
+
+        Parameters
+        ----------
+        source : generator
+            Yields dictionaries of data matching the inputs of the graph.
+        hyperparams : dict
+            Static hyperparameters for the graph; merged with the dynamic
+            source.
+        max_iter : int
+            Maximum number of interations to run.
+        save_freq : int
+            Number of iterations between checkpoints.
+        print_freq : int
+            Number of iterations between displaying progress.
+        """
         assert Graph.TOTAL_LOSS in self.graph.outputs
 
         self._stats.update(
@@ -407,43 +441,6 @@ class Driver(object):
     def __del__(self):
         if not self.log_file or not self.output_directory:
             return
-        log_file = os.path.join(self.output_directory,
-                                "%s.json" % self.log_file)
+        log_file = os.path.join(self.output_directory, self.log_file)
         with open(log_file, 'w') as fp:
             json.dump(self._stats, fp, indent=2)
-
-
-class MultiSourceDriver(Driver):
-
-    def fit(self, sources, hyperparams, max_iter=10000, save_freq=250,
-            print_freq=50):
-        """Fit the internal graph to the given data source."""
-        self._stats.update(
-            checkpoints=[],
-            start_time=time.asctime(),
-            hyperparams=hyperparams,
-            max_iter=max_iter,
-            save_freq=save_freq)
-
-        if save_freq is None or save_freq <= 0:
-            save_freq = np.inf
-
-        param_file_fmt = "%%s-%%0%dd-%s.npz" % (np.ceil(np.log10(max_iter)+1),
-                                                self.TIME_FMT)
-        try:
-            for n_iter in xrange(max_iter):
-                data = concatenate_data([s.next() for s in sources])
-                data.update(**hyperparams)
-                outputs = self.graph(**data)
-                self.update_stats(n_iter, outputs[0])
-                if n_iter > 0 and (n_iter % save_freq) == 0:
-                    if not self.output_directory is None:
-                        self._save_params(n_iter, param_file_fmt)
-                if (n_iter % print_freq) == 0:
-                    self.print_last_stats()
-                if not np.isfinite(outputs[0]):
-                    print "Caught a non-finite loss at iteration: %d " % n_iter
-                    break
-
-        except KeyboardInterrupt:
-            print "Stopping early after %d iterations" % n_iter
