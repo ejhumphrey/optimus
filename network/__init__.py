@@ -23,20 +23,25 @@ from .nodes import Affine
 from .nodes import Conv3D
 from .nodes import Softmax
 from .nodes import MultiSoftmax
+from .nodes import CrossProduct
 
 from .losses import NegativeLogLikelihood
 from .losses import MultiNegativeLogLikelihood
+from .losses import ConditionalNegativeLogLikelihood
 from .losses import L1Magnitude
 from .losses import L2Magnitude
+from .losses import Max
 from .losses import MeanSquaredError
+from .losses import SparseMeanSquaredError
 from .losses import CrossEntropy
+from .losses import SparseCrossEntropy
 from .losses import LikelihoodMargin
+from .losses import NLLMargin
 from .losses import ClassificationError
 
 from .framework import ConnectionManager
 from .framework import Graph
 from .framework import Driver
-from .framework import MultiSourceDriver
 from .framework import save
 from .framework import load
 from .framework import random_init
