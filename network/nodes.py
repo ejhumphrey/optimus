@@ -596,6 +596,7 @@ class Normalize(Node):
         elif self.mode == 'l2':
             scalar = T.sqrt(T.sum(T.abs_(input_var)**2.0, axis=1))
 
+        scalar += 1.0 * T.eq(scalar, 0)
         new_shape = [0] + ['x']*(self.input.variable.ndim - 1)
         print new_shape
         scalar = scalar.dimshuffle(*new_shape)
