@@ -560,11 +560,12 @@ class Normalize(Node):
     """
 
     """
-    def __init__(self, name, mode='l2'):
+    def __init__(self, name, mode='l2', scale_factor=1.0):
         Node.__init__(self, name=name, mode=mode)
         self.input = core.Port(name=self.__own__('input'))
         self.output = core.Port(name=self.__own__('output'))
         self.mode = mode
+        self.scale_factor = scale_factor
 
     @property
     def inputs(self):
@@ -599,4 +600,4 @@ class Normalize(Node):
         scalar += 1.0 * T.eq(scalar, 0)
         new_shape = [0] + ['x']*(self.input.variable.ndim - 1)
         scalar = scalar.dimshuffle(*new_shape)
-        self.output.variable = self.input.variable / scalar
+        self.output.variable = scale_factor * self.input.variable / scalar
