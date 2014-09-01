@@ -82,7 +82,7 @@ class Affine(Node):
       (i.e., a fully-connected non-linear projection)
 
     """
-    def __init__(self, name, input_shape, output_shape, act_type):
+    def __init__(self, name, input_shape, output_shape, act_type, **kwargs):
         Node.__init__(
             self,
             name=name,
@@ -560,7 +560,7 @@ class Normalize(Node):
     """
 
     """
-    def __init__(self, name, mode='l1'):
+    def __init__(self, name, mode='l2'):
         Node.__init__(self, name=name, mode=mode)
         self.input = core.Port(name=self.__own__('input'))
         self.output = core.Port(name=self.__own__('output'))
@@ -590,13 +590,14 @@ class Normalize(Node):
         """In-place transformation"""
         assert self.is_ready(), "Not all ports are set."
         input_var = self.input.variable.flatten(2)
-        shape = input_var.shape
-        if self.mode == 'l1':
-            scalar = T.sum(T.abs_(input_var))
-        elif self.mode == 'l2':
-            scalar = T.sum(T.abs_(input_var))
-        self.cost.variable = var_magnitude * self.weight.variable
-        in_a = self.input_a.variable.dimshuffle(0, 1, 'x')
-        in_b = self.input_b.variable.dimshuffle(0, 'x', 1)
 
-        self.output.variable = (in_a * in_b).flatten(2)
+        if self.mode == 'l1':
+            scalar = T.sum(T.abs_(input_var), axis=1)
+        elif self.mode == 'l2':
+            scalar = T.sqrt(T.sum(T.abs_(input_var)**2.0, axis=1))
+
+        new_shape = [0] + ['x']*(self.input.variable.ndim - 1)
+        print new_shape
+        scalar = scalar.dimshuffle(*new_shape)
+        print scalar.shape
+        self.output.variable = self.input.variable / scalar

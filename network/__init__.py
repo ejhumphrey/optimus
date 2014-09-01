@@ -24,6 +24,7 @@ from .nodes import Conv3D
 from .nodes import Softmax
 from .nodes import MultiSoftmax
 from .nodes import CrossProduct
+from .nodes import Normalize
 
 from .losses import NegativeLogLikelihood
 from .losses import MultiNegativeLogLikelihood
