@@ -600,4 +600,4 @@ class Normalize(Node):
         scalar += 1.0 * T.eq(scalar, 0)
         new_shape = [0] + ['x']*(self.input.variable.ndim - 1)
         scalar = scalar.dimshuffle(*new_shape)
-        self.output.variable = scale_factor * self.input.variable / scalar
+        self.output.variable = self.scale_factor * self.input.variable / scalar
