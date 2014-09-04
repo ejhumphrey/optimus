@@ -147,6 +147,65 @@ class Concatenate(Node):
                                              axis=self.axis)
 
 
+class Log(Node):
+    """
+
+    """
+    def __init__(self, name):
+        Node.__init__(self, name=name)
+        self.input = core.Port(name=self.__own__('input'))
+        self.output = core.Port(name=self.__own__('output'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        return {self.input.name: self.input}
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        return {}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = T.log(self.input.variable)
+
+
+class Gain(Node):
+    """Apply a scalar gain to an input."""
+    def __init__(self, name):
+        Node.__init__(self, name=name)
+        self.input = core.Port(name=self.__own__('input'))
+        self.output = core.Port(name=self.__own__('output'))
+        self.weight = core.Parameter(shape=None, name=self.__own__('weight'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        return {self.input.name: self.input}
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        return {self.weight.name: self.weight}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = self.weight.variable * self.input.variable
+
+
 class Affine(Node):
     """
     Affine Transform Layer
@@ -726,62 +785,3 @@ class Normalize(Node):
         new_shape = [0] + ['x']*(self.input.variable.ndim - 1)
         scalar = scalar.dimshuffle(*new_shape)
         self.output.variable = self.scale_factor * self.input.variable / scalar
-
-
-class Gain(Node):
-    """Apply a scalar gain to an input."""
-    def __init__(self, name):
-        Node.__init__(self, name=name)
-        self.input = core.Port(name=self.__own__('input'))
-        self.output = core.Port(name=self.__own__('output'))
-        self.weight = core.Parameter(shape=None, name=self.__own__('weight'))
-
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        return {self.input.name: self.input}
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        return {self.weight.name: self.weight}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        return {self.output.name: self.output}
-
-    def transform(self):
-        """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
-        self.output.variable = self.weight.variable * self.input.variable
-
-
-class Log(Node):
-    """
-
-    """
-    def __init__(self, name):
-        Node.__init__(self, name=name)
-        self.input = core.Port(name=self.__own__('input'))
-        self.output = core.Port(name=self.__own__('output'))
-
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        return {self.input.name: self.input}
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        return {}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        return {self.output.name: self.output}
-
-    def transform(self):
-        """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
-        self.output.variable = T.log(self.input.variable)

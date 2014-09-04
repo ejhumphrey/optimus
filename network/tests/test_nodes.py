@@ -57,5 +57,34 @@ class NodeTests(unittest.TestCase):
             z = fx(a, b)[0]
             np.testing.assert_equal(z, np.concatenate([a, b], axis=axis))
 
+    def test_Log(self):
+        x1 = core.Input(name='x1', shape=(2, 2))
+        log = nodes.Log('log')
+        log.input.connect(x1)
+        log.transform()
+
+        fx = nodes.compile(inputs=log.inputs.values(),
+                           outputs=log.outputs.values())
+
+        a = np.array([[3, -1], [3, 7]])
+        z = fx(a)[0]
+        np.testing.assert_equal(z, np.log(a))
+
+    def test_Gain(self):
+        x1 = core.Input(name='x1', shape=(2, 2))
+        gain = nodes.Gain('gain')
+        gain.input.connect(x1)
+        gain.transform()
+
+        fx = nodes.compile(inputs=gain.inputs.values(),
+                           outputs=gain.outputs.values())
+
+        a = np.array([[3, -1], [3, 7]])
+        np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
+
+        gain.weight.value = np.array(-1.0)
+        np.testing.assert_equal(fx(a)[0], -1*a)
+
+
 if __name__ == "__main__":
     unittest.main()
