@@ -102,3 +102,51 @@ def manhattan_proj(a, b):
     a = a.flatten(2).dimshuffle("x", 0, 1)
     b = b.flatten(2).dimshuffle(0, "x", 1)
     return T.sum(T.abs_(a - b), axis=-1)
+
+
+def max_not_index(X, index):
+    """Returns the maximum elements in each row of `X`, ignoring the columns
+    in `index`.
+
+    Parameters
+    ----------
+    X : T.matrix, ndim=2
+        Input data
+    index : T.ivector
+        Column indexes to ignore.
+
+    Returns
+    -------
+    Xmax : T.vector, dtype=X.dtype, shape=X.shape[0]
+        Maximum values of each row in `X` not in columns `index`.
+    """
+    batch_idx = T.arange(index.shape[0], dtype='int32')
+    index_values = X[batch_idx, index]
+    offset = T.zeros_like(X)
+    offset = T.set_subtensor(offset[batch_idx, index], 1.0)
+    offset *= index_values.dimshuffle(0, 'x') + 1
+    return T.max(X - offset, axis=1)
+
+
+def min_not_index(X, index):
+    """Returns the minimum elements in each row of `X`, ignoring the columns
+    in `index`.
+
+    Parameters
+    ----------
+    X : T.matrix, ndim=2
+        Input data
+    index : T.ivector
+        Column indexes to ignore.
+
+    Returns
+    -------
+    Xmin : T.vector, dtype=X.dtype, shape=X.shape[0]
+        Minimum values of each row in `X` not in columns `index`.
+    """
+    batch_idx = T.arange(index.shape[0], dtype='int32')
+    index_values = X[batch_idx, index]
+    offset = T.zeros_like(X)
+    offset = T.set_subtensor(offset[batch_idx, index], 1.0)
+    offset *= index_values.dimshuffle(0, 'x') + 1
+    return T.min(X + offset, axis=1)
