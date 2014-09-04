@@ -2,8 +2,7 @@
 
 import theano.tensor as T
 from . import core
-from .functions import sigmoid
-from .functions import relu
+from . import functions as FX
 
 
 class Loss(core.JObject):
@@ -192,39 +191,6 @@ class ConditionalNegativeLogLikelihood(Loss):
         self.cost.variable = T.mean(self.loss.variable)
 
 
-def _moia_max(values, index, margin):
-    batch_idx = T.arange(index.shape[0], dtype='int32')
-    target_values = values[batch_idx, index]
-    target_mask = T.zeros_like(values)
-    target_mask = T.set_subtensor(target_mask[batch_idx, index], 1.0)
-    other_mask = 1.0 - target_mask
-    # Find the maximum values after setting the targets to -2*min
-    moia_values = T.max(other_mask*values - 2*target_mask*values.min(), axis=1)
-    return relu(margin - target_values + moia_values)
-
-
-def _greater_than_index(values, index, margin):
-    batch_idx = T.arange(index.shape[0], dtype='int32')
-    target_values = values[batch_idx, index].dimshuffle(0, 'x')
-    target_mask = T.zeros_like(values)
-    target_mask = T.set_subtensor(target_mask[batch_idx, index], 1.0)
-    other_mask = 1.0 - target_mask
-    # Find the maximum values after setting the targets to -2*min
-    other_values = other_mask*values - 2*target_mask*values.min()
-    return relu(margin - target_values + other_values)
-
-
-def _moia_min(values, index, margin):
-    batch_idx = T.arange(index.shape[0], dtype='int32')
-    target_values = values[batch_idx, index]
-    target_mask = T.zeros_like(values)
-    target_mask = T.set_subtensor(target_mask[batch_idx, index], 1.0)
-    other_mask = 1.0 - target_mask
-    # Find the maximum values after setting the targets to -2*min
-    moia_values = T.min(other_mask*values + 2*target_mask*values.max(), axis=1)
-    return relu(margin - moia_values +  target_values)
-
-
 class LikelihoodMargin(Loss):
     """
 
@@ -277,6 +243,7 @@ class NLLMargin(Loss):
     """
     def __init__(self, name, weighted=False, mode='l1'):
         # Input Validation
+        raise NotImplementedError("Come back to this.")
         Loss.__init__(self, name=name, weighted=weighted, mode=mode)
         self.likelihood = core.Port(
             name=self.__own__("likelihood"))
@@ -318,45 +285,49 @@ class NLLMargin(Loss):
 
 class ClassificationError(Loss):
     """writeme"""
-    def __init__(self, name, weighted=False, mode='likelihood'):
+    def __init__(self, name, weighted=False, mode='max'):
         # Input Validation
-        Loss.__init__(self, name=name, weighted=weighted)
-        self.likelihood = core.Port(
-            name=self.__own__("likelihood"))
+        Loss.__init__(self, name=name, weighted=weighted, mode=mode)
+        self.prediction = core.Port(
+            name=self.__own__("prediction"))
         self.target_idx = core.Port(
             name=self.__own__("target_idx"), shape=[])
         self.weights = core.Port(name=self.__own__("weights"),
                                  shape=[]) if weighted else False
+        assert mode in ['min', 'max']
         self.mode = mode
 
     @property
     def inputs(self):
         """Return a list of all active Outputs in the node."""
         # Filter based on what is set / active?
-        ports = [self.likelihood, self.target_idx]
+        ports = [self.prediction, self.target_idx]
         if self.weights:
             ports.append(self.weights)
         return dict([(v.name, v) for v in ports])
 
     def transform(self):
-        """writeme"""
-        assert self.likelihood.variable, "Port error: 'likelihood' not set."
-        energy = -T.log(self.likelihood.variable)
+        """Compute the outputs for this loss."""
+        assert self.prediction.variable, "Port error: 'prediction' not set."
+        prediction = self.prediction.variable
 
         assert self.target_idx.variable, "Port error: 'target_idx' not set."
         target_idx = self.target_idx.variable
 
         batch_idx = T.arange(target_idx.shape[0], dtype='int32')
-        target_energy = energy[batch_idx, target_idx]
+        target_values = prediction[batch_idx, target_idx]
 
-        target_mask = T.zeros_like(energy)
-        target_mask = T.set_subtensor(target_mask[batch_idx, target_idx], 1.0)
-        other_mask = 1.0 - target_mask
-        # Add twice the current highest value
-        moia_energy = T.min(
-            other_mask*energy + 2*target_mask*energy.max(), axis=1)
+        if self.mode == 'max':
+            moia_values = FX.max_not_index(prediction, target_idx)
+            difference = moia_values - target_values
+        elif self.mode == 'min':
+            moia_values = FX.min_not_index(prediction, target_idx)
+            difference = target_values - moia_values
+        else:
+            raise ValueError(
+                "`mode` must take one of ['min', 'max']" % self.mode)
 
-        self.loss.variable = sigmoid(target_energy - moia_energy)
+        self.loss.variable = FX.sigmoid(difference)
         if self.weights:
             self.loss.variable *= self.weights.variable
         self.cost.variable = T.mean(self.loss.variable)
@@ -391,7 +362,7 @@ class ContrastiveDivergence(Loss):
         return T.pow(x, 2.0)
 
     def _diff_cost(self, x, margin):
-        return T.pow(soft_hinge(margin, x), 2.0)
+        return T.pow(FX.soft_hinge(margin, x), 2.0)
 
 
 class L1Magnitude(Loss):
@@ -457,14 +428,12 @@ class Max(Loss):
 
     def transform(self):
         """writeme"""
-        assert self.input.variable, "Port error: '%s' not set." % self.input
-        assert self.weight.variable, "Port error: '%s' not set." % self.weight
-        assert self.threshold.variable, "Port error: '%s' not set." % self.threshold
-        # thresh = self.threshold.variable
-        # if not self.threshold.variable:
-            # thresh = 0.0
-        var_max = relu(T.max(self.input.variable - self.threshold.variable))
-        self.cost.variable = var_max * self.weight.variable
+        ERROR_FMT = "Port error: '%s' not set."
+        assert self.input.variable, ERROR_FMT % self.input
+        assert self.weight.variable, ERROR_FMT % self.weight
+        assert self.threshold.variable, ERROR_FMT % self.threshold
+        var_max = T.max(self.input.variable - self.threshold.variable)
+        self.cost.variable = FX.relu(var_max) * self.weight.variable
 
 
 class MeanSquaredError(Loss):
