@@ -140,8 +140,14 @@ class PortList(object):
         self._variable = []
 
     def connect(self, source):
-        """TODO(ejhumphrey): write me."""
-        self._variable.append(source._variable)
+        """Add a data source to the list of inputs.
+
+        Parameters
+        ----------
+        source : core.Port
+            Source to add to the collection of inputs.
+        """
+        self._variable.append(source.variable)
 
     @property
     def variable(self):
@@ -218,7 +224,7 @@ class Output(Port):
     """TODO(ejhumphrey): write me."""
 
     def reset(self):
-        """TODO(ejhumphrey): fix me."""
+        """TODO(ejhumphrey): write me."""
         self._variable = [None]
 
 

@@ -1,6 +1,7 @@
 """TODO(ejhumphrey): write me."""
 
 import numpy as np
+import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 from theano.tensor.signal import downsample
@@ -8,6 +9,12 @@ from theano.tensor.signal import downsample
 from . import core
 from . import FLOATX
 from . import functions
+
+
+def compile(inputs, outputs):
+    return theano.function(inputs=[x.variable for x in inputs],
+                           outputs=[z.variable for z in outputs],
+                           allow_input_downcast=True)
 
 
 # --- Node Implementations ---
@@ -74,6 +81,70 @@ class Node(core.JObject):
     def outputs(self):
         """Return a list of all active Outputs in the node."""
         raise NotImplementedError("Subclass me")
+
+
+class Accumulate(Node):
+    """Summation node."""
+    def __init__(self, name):
+        # Input Validation
+        Node.__init__(self, name=name)
+        self.input_list = core.PortList(name=self.__own__("input_list"))
+        self.output = core.Port(name=self.__own__('output'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Outputs in the node."""
+        return dict([(v.name, v) for v in [self.input_list]])
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        return {}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """writeme"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = sum(self.input_list.variable)
+
+
+class Concatenate(Node):
+    """
+
+    """
+    def __init__(self, name, axis=-1):
+        Node.__init__(self, name=name, axis=axis)
+        self.input_list = core.PortList(name=self.__own__("input_list"))
+        self.output = core.Port(name=self.__own__('output'))
+        self.axis = axis
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
+        # i.e. dropout yes/no?
+        return dict([(v.name, v) for v in [self.input_list]])
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        # Filter based on what is set / active?
+        return {}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = T.concatenate(self.input_list.variable,
+                                             axis=self.axis)
 
 
 class Affine(Node):
@@ -401,6 +472,60 @@ class MultiSoftmax(Node):
         self.output.variable = T.concatenate(outputs, axis=1)
 
 
+class RadialBasis(Node):
+    """
+    Radial Basis Layer
+      (i.e., an Lp-Distance layer)
+
+    """
+    def __init__(self, name, input_shape, n_out, p=2.0):
+        Node.__init__(
+            self,
+            name=name,
+            input_shape=input_shape,
+            n_out=n_out,
+            p=p)
+        raise NotImplementedError("Come back to this.")
+        n_in = int(np.prod(input_shape[1:]))
+        weight_shape = [n_in, n_out]
+        self.p = p
+        self.input = core.Port(
+            shape=input_shape, name=self.__own__('input'))
+        self.output = core.Port(
+            shape=output_shape, name=self.__own__('output'))
+        self.weights = core.Parameter(
+            shape=weight_shape, name=self.__own__('weights'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
+        # i.e. dropout yes/no?
+        ports = [self.input]
+        return dict([(v.name, v) for v in ports])
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        # Filter based on what is set / active?
+        return {self.weights.name: self.weights}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        weights = self.weights.variable
+
+        x_in = T.flatten(self.input.variable, outdim=2)
+        z_out = T.pow(T.abs_(x_in - weights), self.p).sum(axis=1)
+        self.output.variable = z_out
+
+
 class Conv2D(Node):
     """TODO(ejhumphrey): Implement me."""
 
@@ -601,3 +726,62 @@ class Normalize(Node):
         new_shape = [0] + ['x']*(self.input.variable.ndim - 1)
         scalar = scalar.dimshuffle(*new_shape)
         self.output.variable = self.scale_factor * self.input.variable / scalar
+
+
+class Gain(Node):
+    """Apply a scalar gain to an input."""
+    def __init__(self, name):
+        Node.__init__(self, name=name)
+        self.input = core.Port(name=self.__own__('input'))
+        self.output = core.Port(name=self.__own__('output'))
+        self.weight = core.Parameter(shape=None, name=self.__own__('weight'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        return {self.input.name: self.input}
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        return {self.weight.name: self.weight}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = self.weight.variable * self.input.variable
+
+
+class Log(Node):
+    """
+
+    """
+    def __init__(self, name):
+        Node.__init__(self, name=name)
+        self.input = core.Port(name=self.__own__('input'))
+        self.output = core.Port(name=self.__own__('output'))
+
+    @property
+    def inputs(self):
+        """Return a list of all active Inputs in the node."""
+        return {self.input.name: self.input}
+
+    @property
+    def params(self):
+        """Return a list of all Parameters in the node."""
+        return {}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = T.log(self.input.variable)
