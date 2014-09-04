@@ -147,12 +147,10 @@ class Concatenate(Node):
                                              axis=self.axis)
 
 
-class Log(Node):
-    """
-
-    """
-    def __init__(self, name):
-        Node.__init__(self, name=name)
+class Unary(Node):
+    """Parameter-less operations that have a single input / output."""
+    def __init__(self, name, **kwargs):
+        Node.__init__(self, name=name, **kwargs)
         self.input = core.Port(name=self.__own__('input'))
         self.output = core.Port(name=self.__own__('output'))
 
@@ -173,8 +171,78 @@ class Log(Node):
 
     def transform(self):
         """In-place transformation"""
+        raise NotImplementedError("write me!")
+
+
+class Log(Unary):
+
+    def __init__(self, name):
+        Unary.__init__(self, name=name)
+
+    def transform(self):
+        """In-place transformation"""
         assert self.is_ready(), "Not all ports are set."
         self.output.variable = T.log(self.input.variable)
+
+
+class Sum(Unary):
+    """Returns the sum of an input, or over a given axis."""
+    def __init__(self, name, axis=None):
+        Unary.__init__(self, name=name, axis=axis)
+        self.axis = axis
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        if self.axis is None:
+            self.output.variable = T.sum(self.input.variable)
+        else:
+            self.output.variable = T.sum(self.input.variable, axis=self.axis)
+
+
+class Mean(Unary):
+    """Returns the mean of an input, or over a given axis."""
+    def __init__(self, name, axis=None):
+        Unary.__init__(self, name=name, axis=axis)
+        self.axis = axis
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        if self.axis is None:
+            self.output.variable = T.mean(self.input.variable)
+        else:
+            self.output.variable = T.mean(self.input.variable, axis=self.axis)
+
+
+class Max(Unary):
+    """Returns the max of an input, or over a given axis."""
+    def __init__(self, name, axis=None):
+        Unary.__init__(self, name=name, axis=axis)
+        self.axis = axis
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        if self.axis is None:
+            self.output.variable = T.max(self.input.variable)
+        else:
+            self.output.variable = T.max(self.input.variable, axis=self.axis)
+
+
+class Min(Unary):
+    """Returns the min of an input, or over a given axis."""
+    def __init__(self, name, axis=None):
+        Unary.__init__(self, name=name, axis=axis)
+        self.axis = axis
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        if self.axis is None:
+            self.output.variable = T.min(self.input.variable)
+        else:
+            self.output.variable = T.min(self.input.variable, axis=self.axis)
 
 
 class Gain(Node):
@@ -212,7 +280,7 @@ class Affine(Node):
       (i.e., a fully-connected non-linear projection)
 
     """
-    def __init__(self, name, input_shape, output_shape, act_type, **kwargs):
+    def __init__(self, name, input_shape, output_shape, act_type):
         Node.__init__(
             self,
             name=name,
@@ -234,10 +302,6 @@ class Affine(Node):
         self.bias = core.Parameter(
             shape=[n_out], name=self.__own__('bias'))
         self.dropout = None
-
-    # @classmethod
-    # def __json_init__(cls, input_shape, output_shape, act_type):
-    #     return cls(input_shape, output_shape, act_type)
 
     def enable_dropout(self):
         self.dropout = core.Port(shape=None, name=self.__own__('dropout'))
@@ -451,8 +515,6 @@ class Softmax(Affine):
         self.output = core.Port(
             shape=[input_shape[0], n_out], name=self.__own__('output'))
         self.dropout = None
-        # self.dropout = core.Port(
-        #     shape=None, name=self.__own__('dropout'))
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self.bias = core.Parameter(
@@ -754,10 +816,7 @@ class Normalize(Node):
     @property
     def inputs(self):
         """Return a list of all active Inputs in the node."""
-        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
-        # i.e. dropout yes/no?
-        ports = [self.input]
-        return dict([(v.name, v) for v in ports])
+        return {self.input.name: self.input}
 
     @property
     def params(self):
@@ -785,3 +844,38 @@ class Normalize(Node):
         new_shape = [0] + ['x']*(self.input.variable.ndim - 1)
         scalar = scalar.dimshuffle(*new_shape)
         self.output.variable = self.scale_factor * self.input.variable / scalar
+
+
+class SelectIndex(Node):
+    """writeme"""
+    def __init__(self, name):
+        # Input Validation
+        Node.__init__(self, name=name)
+        self.input = core.Port(name=self.__own__("input"))
+        self.index = core.Port(name=self.__own__("index"), shape=[])
+        self.output = core.Port(name=self.__own__('output'))
+
+    @property
+    def inputs(self):
+        """Return the inputs of the node."""
+        return {self.input.name: self.input, self.index.name: self.index}
+
+    @property
+    def params(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return {}
+
+    @property
+    def outputs(self):
+        """Return a list of all active Outputs in the node."""
+        # Filter based on what is set / active?
+        return {self.output.name: self.output}
+
+    def transform(self):
+        """writeme"""
+        assert self.is_ready()
+        assert self.input.variable.ndim == 2
+        col_index = self.index.variable
+        row_index = T.arange(col_index.shape[0], dtype='int32')
+        self.output.variable = self.input.variable[row_index, col_index]

@@ -19,19 +19,28 @@ from .core import Output
 from .core import Parameter
 from .core import Port
 
+from .nodes import Accumulate
+from .nodes import Concatenate
+from .nodes import Log
+from .nodes import Mean
+from .nodes import Min
+from .nodes import Max
+from .nodes import Sum
+from .nodes import Normalize
+from .nodes import SelectIndex
+
 from .nodes import Affine
 from .nodes import Conv3D
 from .nodes import Softmax
 from .nodes import MultiSoftmax
 from .nodes import CrossProduct
-from .nodes import Normalize
+from .nodes import Gain
 
 from .losses import NegativeLogLikelihood
 from .losses import MultiNegativeLogLikelihood
 from .losses import ConditionalNegativeLogLikelihood
 from .losses import L1Magnitude
 from .losses import L2Magnitude
-from .losses import Max
 from .losses import MeanSquaredError
 from .losses import SparseMeanSquaredError
 from .losses import CrossEntropy
