@@ -36,8 +36,7 @@ from .losses import MeanSquaredError
 from .losses import SparseMeanSquaredError
 from .losses import CrossEntropy
 from .losses import SparseCrossEntropy
-from .losses import LikelihoodMargin
-from .losses import NLLMargin
+from .losses import Margin
 from .losses import ClassificationError
 
 from .framework import ConnectionManager

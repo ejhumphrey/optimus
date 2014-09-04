@@ -191,15 +191,15 @@ class ConditionalNegativeLogLikelihood(Loss):
         self.cost.variable = T.mean(self.loss.variable)
 
 
-class LikelihoodMargin(Loss):
+class Margin(Loss):
     """
 
     """
-    def __init__(self, name, weighted=False, mode='l1'):
+    def __init__(self, name, weighted=False, mode='max'):
         # Input Validation
         Loss.__init__(self, name=name, weighted=weighted, mode=mode)
-        self.likelihood = core.Port(
-            name=self.__own__("likelihood"))
+        self.prediction = core.Port(
+            name=self.__own__("prediction"))
         self.target_idx = core.Port(
             name=self.__own__("target_idx"), shape=[])
         self.margin = core.Port(
@@ -212,71 +212,34 @@ class LikelihoodMargin(Loss):
     def inputs(self):
         """Return a list of all active Outputs in the node."""
         # Filter based on what is set / active?
-        ports = [self.likelihood, self.target_idx, self.margin]
+        ports = [self.prediction, self.target_idx, self.margin]
         if self.weight:
             ports.append(self.weight)
         return dict([(v.name, v) for v in ports])
 
     def transform(self):
         """writeme"""
-        assert self.likelihood.variable, "Port error: 'likelihood' not set."
-        likelihood = self.likelihood.variable
+        assert self.prediction.variable, "Port error: 'prediction' not set."
+        prediction = self.prediction.variable
         assert self.target_idx.variable, "Port error: 'target_idx' not set."
         target_idx = self.target_idx.variable
         assert self.margin.variable, "Port error: 'margin' not set."
         margin = self.margin.variable
 
-        loss = T.sum(_greater_than_index(likelihood, target_idx, margin),
-                     axis=-1)
-        if self.mode == 'l2':
-            loss = 0.5*T.pow(loss, 2.0)
-        self.loss.variable = loss
-        if self.weight:
-            assert self.weight.variable, "Port error: 'weight' not set."
-            self.loss.variable *= self.weight.variable
-        self.cost.variable = T.mean(self.loss.variable)
+        batch_idx = T.arange(target_idx.shape[0], dtype='int32')
+        target_values = prediction[batch_idx, target_idx]
 
+        if self.mode == 'max':
+            moia_values = FX.max_not_index(prediction, target_idx)
+            difference = margin + moia_values - target_values
+        elif self.mode == 'min':
+            moia_values = FX.min_not_index(prediction, target_idx)
+            difference = margin + target_values - moia_values
+        else:
+            raise ValueError(
+                "`mode` must take one of ['min', 'max']" % self.mode)
 
-class NLLMargin(Loss):
-    """
-
-    """
-    def __init__(self, name, weighted=False, mode='l1'):
-        # Input Validation
-        raise NotImplementedError("Come back to this.")
-        Loss.__init__(self, name=name, weighted=weighted, mode=mode)
-        self.likelihood = core.Port(
-            name=self.__own__("likelihood"))
-        self.target_idx = core.Port(
-            name=self.__own__("target_idx"), shape=[])
-        self.margin = core.Port(
-            name=self.__own__("margin"))
-        self.weight = False if not weighted else core.Port(
-            name=self.__own__("weight"))
-        self.mode = mode
-
-    @property
-    def inputs(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        ports = [self.likelihood, self.target_idx, self.margin]
-        if self.weight:
-            ports.append(self.weight)
-        return dict([(v.name, v) for v in ports])
-
-    def transform(self):
-        """writeme"""
-        assert self.likelihood.variable, "Port error: 'likelihood' not set."
-        likelihood = self.likelihood.variable
-        assert self.target_idx.variable, "Port error: 'target_idx' not set."
-        target_idx = self.target_idx.variable
-        assert self.margin.variable, "Port error: 'margin' not set."
-        margin = self.margin.variable
-
-        loss = _moia_min(-T.log(likelihood), target_idx, margin)
-        if self.mode == 'l2':
-            loss = 0.5*T.pow(loss, 2.0)
-        self.loss.variable = loss
+        self.loss.variable = FX.relu(difference)
         if self.weight:
             assert self.weight.variable, "Port error: 'weight' not set."
             self.loss.variable *= self.weight.variable
