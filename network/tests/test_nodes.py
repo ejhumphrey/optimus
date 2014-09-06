@@ -57,6 +57,27 @@ class NodeTests(unittest.TestCase):
             z = fx(a, b)[0]
             np.testing.assert_equal(z, np.concatenate([a, b], axis=axis))
 
+    def test_Stack(self):
+        x1 = core.Input(name='x1', shape=(2, 3))
+        x2 = core.Input(name='x2', shape=(2, 3))
+        a = np.arange(6).reshape(2, 3)
+        b = np.arange(6).reshape(2, 3) + 6
+
+        for axes in None, (1, 2, 0), (2, 1, 0):
+            n = nodes.Stack('stack', axes=axes)
+            n.input_list.connect(x1)
+            n.input_list.connect(x2)
+            n.transform()
+
+            fx = nodes.compile(inputs=[x1, x2],
+                               outputs=[n.output])
+
+            z = fx(a, b)[0]
+            expected = np.array([a, b])
+            if axes:
+                expected = np.transpose(expected, axes)
+            np.testing.assert_equal(z, expected)
+
     def test_Log(self):
         x1 = core.Input(name='x1', shape=(2, 2))
         log = nodes.Log('log')

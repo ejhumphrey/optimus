@@ -29,6 +29,9 @@ class Node(core.JObject):
         self.act_type = 'linear'
         self._numpy_rng = np.random.RandomState()
         self._theano_rng = RandomStreams(self._numpy_rng.randint(2 ** 30))
+        self._inputs = []
+        self._params = []
+        self._outputs = []
 
     # --- Public Properties ---
     @property
@@ -69,18 +72,18 @@ class Node(core.JObject):
 
     @property
     def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        raise NotImplementedError("Subclass me")
+        """Return a dict of all active Outputs in the node."""
+        return dict([(v.name, v) for v in self._inputs])
 
     @property
     def params(self):
-        """Return a list of all Parameters in the node."""
-        raise NotImplementedError("Subclass me")
+        """Return a dict of all Parameters in the node."""
+        return dict([(v.name, v) for v in self._params])
 
     @property
     def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        raise NotImplementedError("Subclass me")
+        """Return a dict of all active Outputs in the node."""
+        return dict([(v.name, v) for v in self._outputs])
 
 
 class Accumulate(Node):
@@ -89,22 +92,9 @@ class Accumulate(Node):
         # Input Validation
         Node.__init__(self, name=name)
         self.input_list = core.PortList(name=self.__own__("input_list"))
+        self._inputs.append(self.input_list)
         self.output = core.Port(name=self.__own__('output'))
-
-    @property
-    def inputs(self):
-        """Return a list of all active Outputs in the node."""
-        return dict([(v.name, v) for v in [self.input_list]])
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        return {}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        return {self.output.name: self.output}
+        self._outputs.append(self.output)
 
     def transform(self):
         """writeme"""
@@ -119,26 +109,10 @@ class Concatenate(Node):
     def __init__(self, name, axis=-1):
         Node.__init__(self, name=name, axis=axis)
         self.input_list = core.PortList(name=self.__own__("input_list"))
+        self._inputs.append(self.input_list)
         self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
         self.axis = axis
-
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
-        # i.e. dropout yes/no?
-        return dict([(v.name, v) for v in [self.input_list]])
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        # Filter based on what is set / active?
-        return {}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        return {self.output.name: self.output}
 
     def transform(self):
         """In-place transformation"""
@@ -147,31 +121,33 @@ class Concatenate(Node):
                                              axis=self.axis)
 
 
-class Unary(Node):
-    """Parameter-less operations that have a single input / output."""
-    def __init__(self, name, **kwargs):
-        Node.__init__(self, name=name, **kwargs)
-        self.input = core.Port(name=self.__own__('input'))
+class Stack(Node):
+    """Form a rank+1 tensor of a set of inputs; optionally reorder the axes."""
+    def __init__(self, name, axes=None):
+        Node.__init__(self, name=name, axes=axes)
+        self.input_list = core.PortList(name=self.__own__("input_list"))
+        self._inputs.append(self.input_list)
         self.output = core.Port(name=self.__own__('output'))
-
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        return {self.input.name: self.input}
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        return {}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        return {self.output.name: self.output}
+        self._outputs.append(self.output)
+        self.axes = axes
 
     def transform(self):
         """In-place transformation"""
-        raise NotImplementedError("write me!")
+        assert self.is_ready(), "Not all ports are set."
+        output = T.stack(*self.input_list.variable)
+        if self.axes:
+            output = T.transpose(output, axes=self.axes)
+        self.output.variable = output
+
+
+class Unary(Node):
+    """Single input / output nodes."""
+    def __init__(self, name, **kwargs):
+        Node.__init__(self, name=name, **kwargs)
+        self.input = core.Port(name=self.__own__('input'))
+        self._inputs.append(self.input)
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
 
 
 class Log(Unary):
@@ -183,6 +159,50 @@ class Log(Unary):
         """In-place transformation"""
         assert self.is_ready(), "Not all ports are set."
         self.output.variable = T.log(self.input.variable)
+
+
+class Sigmoid(Unary):
+
+    def __init__(self, name):
+        Unary.__init__(self, name=name)
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = functions.sigmoid(self.input.variable)
+
+
+class Softmax(Unary):
+    """Apply the softmax to an input."""
+    def __init__(self, name):
+        Unary.__init__(self, name=name)
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = T.nnet.softmax(self.input.variable)
+
+
+class RectifiedLinear(Unary):
+    """Apply the (hard) rectified linear function to an input."""
+    def __init__(self, name):
+        Unary.__init__(self, name=name)
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = functions.relu(self.input.variable)
+
+
+class Tanh(Unary):
+    """Apply the hyperbolic tangent to an input."""
+    def __init__(self, name):
+        Unary.__init__(self, name=name)
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = T.tanh(self.input.variable)
 
 
 class Sum(Unary):
@@ -245,28 +265,12 @@ class Min(Unary):
             self.output.variable = T.min(self.input.variable, axis=self.axis)
 
 
-class Gain(Node):
+class Gain(Unary):
     """Apply a scalar gain to an input."""
     def __init__(self, name):
-        Node.__init__(self, name=name)
-        self.input = core.Port(name=self.__own__('input'))
-        self.output = core.Port(name=self.__own__('output'))
+        Unary.__init__(self, name=name)
         self.weight = core.Parameter(shape=None, name=self.__own__('weight'))
-
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        return {self.input.name: self.input}
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        return {self.weight.name: self.weight}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        return {self.output.name: self.output}
+        self._params.append(self.weight)
 
     def transform(self):
         """In-place transformation"""
@@ -274,14 +278,14 @@ class Gain(Node):
         self.output.variable = self.weight.variable * self.input.variable
 
 
-class Affine(Node):
+class Affine(Unary):
     """
     Affine Transform Layer
       (i.e., a fully-connected non-linear projection)
 
     """
     def __init__(self, name, input_shape, output_shape, act_type):
-        Node.__init__(
+        Unary.__init__(
             self,
             name=name,
             input_shape=input_shape,
@@ -293,44 +297,21 @@ class Affine(Node):
         n_out = int(np.prod(output_shape[1:]))
         weight_shape = [n_in, n_out]
 
-        self.input = core.Port(
-            shape=input_shape, name=self.__own__('input'))
-        self.output = core.Port(
-            shape=output_shape, name=self.__own__('output'))
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self.bias = core.Parameter(
             shape=[n_out], name=self.__own__('bias'))
+        self._params.extend([self.weights, self.bias])
         self.dropout = None
 
     def enable_dropout(self):
         self.dropout = core.Port(shape=None, name=self.__own__('dropout'))
+        self._inputs.append(self.dropout)
 
     def disable_dropout(self):
-        self.dropout = None
-
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
-        # i.e. dropout yes/no?
-        ports = [self.input]
         if self.dropout:
-            ports.append(self.dropout)
-        return dict([(v.name, v) for v in ports])
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        # Filter based on what is set / active?
-        return {self.weights.name: self.weights,
-                self.bias.name: self.bias}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return {self.output.name: self.output}
+            self._inputs.remove(self.dropout)
+        self.dropout = None
 
     def transform(self):
         """In-place transformation"""
@@ -353,7 +334,7 @@ class Affine(Node):
             z_out, [z_out.shape[0]] + output_shape)
 
 
-class Conv3D(Node):
+class Conv3D(Unary):
     """TODO(ejhumphrey): write me."""
 
     def __init__(self, name, input_shape, weight_shape,
@@ -379,7 +360,7 @@ class Conv3D(Node):
             Convolution method for dealing with the edge of a feature map.
 
         """
-        Node.__init__(
+        Unary.__init__(
             self,
             name=name,
             input_shape=input_shape,
@@ -417,21 +398,14 @@ class Conv3D(Node):
 
         output_shape = (input_shape[0], weight_shape[0], d0_out, d1_out)
 
-        self.input = core.Port(
-            shape=input_shape,
-            name=self.__own__('input'))
-        self.output = core.Port(
-            shape=output_shape,
-            name=self.__own__('output'))
-        self.dropout = core.Port(
-            shape=None,
-            name=self.__own__('dropout'))
+        self.dropout = None
         self.weights = core.Parameter(
             shape=weight_shape,
             name=self.__own__('weights'))
         self.bias = core.Parameter(
             shape=weight_shape[:1],
             name=self.__own__('bias'))
+        self._params.extend([self.weights, self.bias])
 
         self.pool_shape = pool_shape
         self.downsample_shape = downsample_shape
@@ -448,28 +422,9 @@ class Conv3D(Node):
 
         self.weights.value = weight_values.astype(FLOATX)
 
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        # Filter based on what is set / active?
-        return {self.input.name: self.input}
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        # Filter based on what is set / active?
-        return {self.weights.name: self.weights,
-                self.bias.name: self.bias}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return {self.output.name: self.output}
-
     def transform(self):
         """writeme."""
-        assert self.input.variable, "Input port not set."
+        assert self.is_ready(), "Input ports not set."
         weights = self.weights.variable
         bias = self.bias.variable.dimshuffle('x', 0, 'x', 'x')
         output = T.nnet.conv.conv2d(
@@ -480,7 +435,7 @@ class Conv3D(Node):
 
         output = self.activation(output + bias)
 
-        if self.dropout.variable:
+        if self.dropout:
             output_shape = list(self.output.shape)
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
@@ -494,10 +449,10 @@ class Conv3D(Node):
         self.output.variable = output
 
 
-class Softmax(Affine):
+class Softmax(Unary):
     """TODO(ejhumphrey): write me."""
 
-    def __init__(self, name, input_shape, n_out, act_type):
+    def __init__(self, name):
         """TODO(ejhumphrey): write me."""
         Node.__init__(
             self,
@@ -560,21 +515,21 @@ class MultiSoftmax(Node):
 
     @property
     def inputs(self):
-        """Return a list of all active Inputs in the node."""
+        """Return a dict of all active Inputs in the node."""
         # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
         # i.e. dropout yes/no?
         return {self.input.name: self.input}
 
     @property
     def params(self):
-        """Return a list of all Parameters in the node."""
+        """Return a dict of all Parameters in the node."""
         # Filter based on what is set / active?
         return {self.weights.name: self.weights,
                 self.bias.name: self.bias}
 
     @property
     def outputs(self):
-        """Return a list of all active Outputs in the node."""
+        """Return a dict of all active Outputs in the node."""
         # Filter based on what is set / active?
         return {self.output.name: self.output}
 
@@ -619,7 +574,7 @@ class RadialBasis(Node):
 
     @property
     def inputs(self):
-        """Return a list of all active Inputs in the node."""
+        """Return a dict of all active Inputs in the node."""
         # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
         # i.e. dropout yes/no?
         ports = [self.input]
@@ -627,13 +582,13 @@ class RadialBasis(Node):
 
     @property
     def params(self):
-        """Return a list of all Parameters in the node."""
+        """Return a dict of all Parameters in the node."""
         # Filter based on what is set / active?
         return {self.weights.name: self.weights}
 
     @property
     def outputs(self):
-        """Return a list of all active Outputs in the node."""
+        """Return a dict of all active Outputs in the node."""
         # Filter based on what is set / active?
         return {self.output.name: self.output}
 
@@ -707,7 +662,7 @@ class CrossProduct(Node):
 
     @property
     def inputs(self):
-        """Return a list of all active Inputs in the node."""
+        """Return a dict of all active Inputs in the node."""
         # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
         # i.e. dropout yes/no?
         ports = [self.input_a, self.input_b]
@@ -715,13 +670,13 @@ class CrossProduct(Node):
 
     @property
     def params(self):
-        """Return a list of all Parameters in the node."""
+        """Return a dict of all Parameters in the node."""
         # Filter based on what is set / active?
         return {}
 
     @property
     def outputs(self):
-        """Return a list of all active Outputs in the node."""
+        """Return a dict of all active Outputs in the node."""
         # Filter based on what is set / active?
         return {self.output.name: self.output}
 
@@ -735,33 +690,16 @@ class CrossProduct(Node):
         self.output.variable = (in_a * in_b).flatten(2)
 
 
-class Normalize(Node):
+class Normalize(Unary):
     """
 
     """
     def __init__(self, name, mode='l2', scale_factor=1.0):
-        Node.__init__(self, name=name, mode=mode)
+        Unary.__init__(self, name=name, mode=mode)
         self.input = core.Port(name=self.__own__('input'))
         self.output = core.Port(name=self.__own__('output'))
         self.mode = mode
         self.scale_factor = scale_factor
-
-    @property
-    def inputs(self):
-        """Return a list of all active Inputs in the node."""
-        return {self.input.name: self.input}
-
-    @property
-    def params(self):
-        """Return a list of all Parameters in the node."""
-        # Filter based on what is set / active?
-        return {}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return {self.output.name: self.output}
 
     def transform(self):
         """In-place transformation"""
@@ -786,24 +724,9 @@ class SelectIndex(Node):
         Node.__init__(self, name=name)
         self.input = core.Port(name=self.__own__("input"))
         self.index = core.Port(name=self.__own__("index"), shape=[])
+        self._inputs.extend([self.input, self.index])
         self.output = core.Port(name=self.__own__('output'))
-
-    @property
-    def inputs(self):
-        """Return the inputs of the node."""
-        return {self.input.name: self.input, self.index.name: self.index}
-
-    @property
-    def params(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return {}
-
-    @property
-    def outputs(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return {self.output.name: self.output}
+        self._outputs.append(self.output)
 
     def transform(self):
         """writeme"""
@@ -826,23 +749,9 @@ class SquaredEuclidean(Node):
         Node.__init__(self, name=name)
         self.input_a = core.Port(name=self.__own__("input_a"))
         self.input_b = core.Port(name=self.__own__("input_b"))
+        self._inputs.extend([self.input_a, self.input_b])
         self.output = core.Port(name=self.__own__('output'))
-
-    @property
-    def inputs(self):
-        """Return the inputs of the node."""
-        ports = [self.input_a, self.input_b]
-        return dict([(v.name, v) for v in ports])
-
-    @property
-    def params(self):
-        return {}
-
-    @property
-    def outputs(self):
-        """Return a list of all outputs in the node."""
-        # Filter based on what is set / active?
-        return {self.output.name: self.output}
+        self._outputs.append(self.output)
 
     def transform(self):
         """Transform inputs to outputs."""
