@@ -157,6 +157,22 @@ class NodeTests(unittest.TestCase):
 
         np.testing.assert_equal(fx(a, i)[0], np.array([-1, 4]))
 
+    def test_SquaredEuclidean(self):
+        x1 = core.Input(name='x1', shape=(None, 2))
+        x2 = core.Input(name='x2', shape=(None, 2))
+
+        a = np.array([[3, -1], [4, 7]])
+        b = np.array([[1, -1], [4, 7]])
+
+        n = nodes.SquaredEuclidean('sqeuclid')
+        n.input_a.connect(x1)
+        n.input_b.connect(x2)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1, x2],
+                           outputs=n.outputs.values())
+        np.testing.assert_equal(fx(a, b)[0], np.power(a - b, 2.0).sum(axis=1))
+
 
 if __name__ == "__main__":
     unittest.main()
