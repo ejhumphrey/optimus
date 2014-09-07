@@ -210,11 +210,16 @@ class Graph(JObject):
         # Define SGD update rules
         # TODO(ejhumphrey): Break this out into something more atomic?
         if self._loss and self._updates:
+            loss = self.ports.get(self._loss.name, None)
+            if loss is None:
+                raise ValueError(
+                    "Requested loss `%s` is not among the "
+                    "computed ports: \n%s" % (self._loss, self.ports.keys()))
             for input_name, param_names in self._updates.iteritems():
                 eta = self.inputs.get(input_name)
                 for param_name in param_names:
                     param = self.params[param_name]
-                    gparam = grad(self._loss.variable, param.variable)
+                    gparam = grad(loss.variable, param.variable)
                     gparam *= eta.variable
                     self.updates[param.variable] = param.variable - gparam
 
@@ -341,8 +346,7 @@ class Driver(object):
         print_freq : int
             Number of iterations between displaying progress.
         """
-        assert Graph.TOTAL_LOSS in self.graph.outputs
-
+        assert self.graph._loss, "Loss not set!"
         self._stats.update(
             checkpoints=[],
             start_time=time.asctime(),
