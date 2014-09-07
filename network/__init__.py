@@ -12,35 +12,48 @@ TENSOR_TYPES = {None: T.scalar,
                 3: T.tensor3,
                 4: T.tensor4}
 
-# from . import core
-# from . import nodes
+# Core objects
 from .core import Input
 from .core import Output
 from .core import Parameter
 from .core import Port
 
+# Multi-Input Nodes
 from .nodes import Accumulate
 from .nodes import Concatenate
-from .nodes import Log
+from .nodes import Stack
+
+# Unary Nodes, no params, dim-redux
+from .nodes import L1Magnitude
+from .nodes import L2Magnitude
+from .nodes import Max
 from .nodes import Mean
 from .nodes import Min
-from .nodes import Max
 from .nodes import Sum
-from .nodes import Normalize
-from .nodes import SelectIndex
 
+# Unary Nodes, no params
+from .nodes import Log
+from .nodes import Normalize
+from .nodes import RectifiedLinear
+from .nodes import Sigmoid
+from .nodes import Softmax
+from .nodes import Tanh
+
+# Unary Nodes, with params
 from .nodes import Affine
 from .nodes import Conv3D
-from .nodes import Softmax
-from .nodes import MultiSoftmax
-from .nodes import CrossProduct
 from .nodes import Gain
+from .nodes import RadialBasis
 
+# Binary Nodes, no params
+from .nodes import CrossProduct
+from .nodes import SelectIndex
+from .nodes import SquaredEuclidean
+
+# Old losses ... deprecated, don't use.
 from .losses import NegativeLogLikelihood
 from .losses import MultiNegativeLogLikelihood
 from .losses import ConditionalNegativeLogLikelihood
-from .losses import L1Magnitude
-from .losses import L2Magnitude
 from .losses import MeanSquaredError
 from .losses import SparseMeanSquaredError
 from .losses import CrossEntropy
@@ -48,6 +61,7 @@ from .losses import SparseCrossEntropy
 from .losses import Margin
 from .losses import ClassificationError
 
+# Framework classes
 from .framework import ConnectionManager
 from .framework import Graph
 from .framework import Driver

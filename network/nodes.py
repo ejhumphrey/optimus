@@ -151,7 +151,6 @@ class Unary(Node):
 
 
 class Log(Unary):
-
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -162,7 +161,6 @@ class Log(Unary):
 
 
 class Sigmoid(Unary):
-
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -293,6 +291,11 @@ class Affine(Unary):
             act_type=act_type)
         self.act_type = act_type
 
+        # TODO(ejhumphrey): This is super important but kind of a hack. Think
+        #   on this and come up with something better.
+        self.input.shape = input_shape
+        self.output.shape = output_shape
+
         n_in = int(np.prod(input_shape[1:]))
         n_out = int(np.prod(output_shape[1:]))
         weight_shape = [n_in, n_out]
@@ -398,6 +401,11 @@ class Conv3D(Unary):
 
         output_shape = (input_shape[0], weight_shape[0], d0_out, d1_out)
 
+        # TODO(ejhumphrey): This is super important but kind of a hack. Think
+        #   on this and come up with something better.
+        self.input.shape = input_shape
+        self.output.shape = output_shape
+
         self.dropout = None
         self.weights = core.Parameter(
             shape=weight_shape,
@@ -449,148 +457,26 @@ class Conv3D(Unary):
         self.output.variable = output
 
 
-class Softmax(Unary):
-    """TODO(ejhumphrey): write me."""
-
-    def __init__(self, name):
-        """TODO(ejhumphrey): write me."""
-        Node.__init__(
+class RadialBasis(Unary):
+    """Radial Basis Layer, i.e. L2-Distance, with internal weights."""
+    def __init__(self, name, input_shape, output_shape):
+        Unary.__init__(
             self,
             name=name,
             input_shape=input_shape,
-            n_out=n_out,
-            act_type=act_type)
-        self.act_type = act_type
+            output_shape=output_shape)
+
+        # TODO(ejhumphrey): This is super important but kind of a hack. Think
+        #   on this and come up with something better.
+        self.input.shape = input_shape
+        self.output.shape = output_shape
 
         n_in = int(np.prod(input_shape[1:]))
+        n_out = int(np.prod(output_shape[1:]))
         weight_shape = [n_in, n_out]
-
-        self.input = core.Port(
-            shape=input_shape, name=self.__own__('input'))
-        self.output = core.Port(
-            shape=[input_shape[0], n_out], name=self.__own__('output'))
-        self.dropout = None
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
-        self.bias = core.Parameter(
-            shape=[n_out], name=self.__own__('bias'))
-
-    def transform(self):
-        """
-        will fix input tensors to be matrices as the following:
-        (N x d0 x d1 x ... dn) -> (N x prod(d_(0:n)))
-        """
-        # I don't think we want this, but I'll leave it for now.
-        # assert self.dropout.variable is None, \
-        #     "Softmax nodes do not currently support dropout."
-        Affine.transform(self)
-        self.output.variable = T.nnet.softmax(self.output.variable)
-
-
-class MultiSoftmax(Node):
-    """Multi-Dimensional Softmax Layer"""
-    def __init__(self, name, input_shape, output_shape, act_type):
-        assert len(output_shape) == 3
-        Node.__init__(
-            self,
-            name=name,
-            input_shape=input_shape,
-            output_shape=output_shape,
-            act_type=act_type)
-        self.act_type = act_type
-
-        n_in = int(np.prod(input_shape[1:]))
-        weight_shape = [output_shape[1], n_in, output_shape[2]]
-
-        self.input = core.Port(
-            shape=input_shape, name=self.__own__('input'))
-        self.output = core.Port(
-            shape=output_shape, name=self.__own__('output'))
-        self.dropout = None  # core.Port(
-            # shape=None, name=self.__own__('dropout')) if dropout else None
-        self.weights = core.Parameter(
-            shape=weight_shape, name=self.__own__('weights'))
-        self.bias = core.Parameter(
-            shape=output_shape[1:], name=self.__own__('bias'))
-
-    @property
-    def inputs(self):
-        """Return a dict of all active Inputs in the node."""
-        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
-        # i.e. dropout yes/no?
-        return {self.input.name: self.input}
-
-    @property
-    def params(self):
-        """Return a dict of all Parameters in the node."""
-        # Filter based on what is set / active?
-        return {self.weights.name: self.weights,
-                self.bias.name: self.bias}
-
-    @property
-    def outputs(self):
-        """Return a dict of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return {self.output.name: self.output}
-
-    def transform(self):
-        """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
-        weights = self.weights.variable
-        bias = self.bias.variable
-        x_in = T.flatten(self.input.variable, outdim=2)
-        outputs = []
-        for i in xrange(self.output.shape[1]):
-            z_i = self.activation(
-                T.dot(x_in, weights[i]) + bias[i].dimshuffle('x', 0))
-            outputs.append(T.nnet.softmax(z_i).dimshuffle(0, 'x', 1))
-
-        self.output.variable = T.concatenate(outputs, axis=1)
-
-
-class RadialBasis(Node):
-    """
-    Radial Basis Layer
-      (i.e., an Lp-Distance layer)
-
-    """
-    def __init__(self, name, input_shape, n_out, p=2.0):
-        Node.__init__(
-            self,
-            name=name,
-            input_shape=input_shape,
-            n_out=n_out,
-            p=p)
-        raise NotImplementedError("Come back to this.")
-        n_in = int(np.prod(input_shape[1:]))
-        weight_shape = [n_in, n_out]
-        self.p = p
-        self.input = core.Port(
-            shape=input_shape, name=self.__own__('input'))
-        self.output = core.Port(
-            shape=output_shape, name=self.__own__('output'))
-        self.weights = core.Parameter(
-            shape=weight_shape, name=self.__own__('weights'))
-
-    @property
-    def inputs(self):
-        """Return a dict of all active Inputs in the node."""
-        # TODO(ejhumphrey@nyu.edu): Filter based on what is set / active?
-        # i.e. dropout yes/no?
-        ports = [self.input]
-        return dict([(v.name, v) for v in ports])
-
-    @property
-    def params(self):
-        """Return a dict of all Parameters in the node."""
-        # Filter based on what is set / active?
-        return {self.weights.name: self.weights}
-
-    @property
-    def outputs(self):
-        """Return a dict of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return {self.output.name: self.output}
+        self._params.append(self.weights)
 
     def transform(self):
         """In-place transformation"""
@@ -598,8 +484,11 @@ class RadialBasis(Node):
         weights = self.weights.variable
 
         x_in = T.flatten(self.input.variable, outdim=2)
-        z_out = T.pow(T.abs_(x_in - weights), self.p).sum(axis=1)
-        self.output.variable = z_out
+        z_out = T.pow(T.abs_(x_in - weights), 2.0).sum(axis=1)
+
+        output_shape = list(self.output.shape)[1:]
+        self.output.variable = T.reshape(
+            z_out, [z_out.shape[0]] + output_shape)
 
 
 class Conv2D(Node):
@@ -760,3 +649,27 @@ class SquaredEuclidean(Node):
         xA = T.flatten(self.input_a.variable, outdim=2)
         xB = T.flatten(self.input_b.variable, outdim=2)
         self.output.variable = T.pow(xA - xB, 2.0).sum(axis=1)
+
+
+class L1Magnitude(Unary):
+    def __init__(self, name, axis=None):
+        Unary.__init__(self, name=name, axis=None)
+        self.axis = axis
+
+    def transform(self):
+        """writeme"""
+        assert self.is_ready()
+        self.output.variable = T.sum(T.abs_(self.input.variable),
+                                     axis=self.axis)
+
+
+class L2Magnitude(Unary):
+    def __init__(self, name, axis=None):
+        Unary.__init__(self, name=name, axis=None)
+        self.axis = axis
+
+    def transform(self):
+        """writeme"""
+        assert self.is_ready()
+        self.output.variable = T.sqrt(T.sum(T.pow(self.input.variable, 2.0),
+                                            axis=self.axis))

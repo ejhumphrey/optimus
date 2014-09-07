@@ -67,10 +67,8 @@ class Graph(JObject):
     Property attributes are named dictionaries, while the corresponding private
     variables are lists.
     """
-    TOTAL_LOSS = 'total_loss'
-
     def __init__(self, name, inputs, nodes, connections, outputs,
-                 losses=None, updates=None, constraints=None,
+                 loss=None, updates=None, constraints=None,
                  chunk_size=250, verbose=False, momentum=0):
         """writeme."""
 
@@ -80,16 +78,7 @@ class Graph(JObject):
         self._connections = connections
         self._outputs = outputs
         self.verbose = verbose
-        if losses is None:
-            losses = list()
-        self._losses = losses
-
-        self.loss = Port(name=self.TOTAL_LOSS)
-        self.loss.variable = 0.0
-        if self.TOTAL_LOSS in self._outputs and not self._losses:
-            raise ValueError(
-                "At least one Loss must be provided to 'losses' if the graph "
-                "is to compute '%s' as an output." % self.TOTAL_LOSS)
+        self._loss = loss
 
         self.chunk_size = chunk_size
         # Disable chunking for trainers.
@@ -106,10 +95,7 @@ class Graph(JObject):
         self.updates = OrderedDict()
         self.outputs = OrderedDict()
         for port in outputs:
-            if port == self.TOTAL_LOSS:
-                self.outputs[self.TOTAL_LOSS] = None
-            else:
-                self.outputs[port.name] = port
+            self.outputs[port.name] = port
 
         self.momentum = momentum
         self._fx = None
@@ -123,7 +109,7 @@ class Graph(JObject):
             nodes=self._nodes,
             connections=self._connections,
             outputs=self._outputs,
-            losses=self._losses,
+            loss=self._loss,
             updates=self._updates,
             type=self.type)
 
@@ -135,9 +121,9 @@ class Graph(JObject):
     def nodes(self):
         return named_list(self._nodes)
 
-    @property
-    def losses(self):
-        return named_list(self._losses)
+    # @property
+    # def loss(self):
+    #     return named_list(self._losses)
 
     @property
     def param_values(self):
@@ -174,10 +160,7 @@ class Graph(JObject):
         for node in self.nodes.values():
             node.reset()
             input_ports.update(node.inputs)
-        # ...losses...
-        for node in self.losses.values():
-            node.reset()
-            input_ports.update(node.inputs)
+
         for port in self.outputs.values():
             if not port is None:
                 port.reset()
@@ -187,7 +170,7 @@ class Graph(JObject):
         # if self.verbose:
         #     print "All Ports: \n%s" % json.dumps(input_ports, indent=2)
         #     print "Connection Map: \n%s" % json.dumps(local_map, indent=2)
-        modules = self.nodes.values() + self.losses.values()
+        nodes = self.nodes.values()
         # This could be smarter, but it will certainly terminate.
         while local_map:
             nothing_happened = True
@@ -201,7 +184,7 @@ class Graph(JObject):
                                                            sink_name)
                         input_ports[sink_name].connect(
                             input_ports[source_name])
-            for node in modules:
+            for node in nodes:
                 if node.is_ready():
                     if self.verbose:
                         print "Transforming %s" % node
@@ -210,17 +193,12 @@ class Graph(JObject):
                     input_ports.update(node.params)
                     input_ports.update(node.outputs)
                     nothing_happened = False
+                    break
             if nothing_happened:
                 print "Your logic is poor, but we can help."
                 print "\t%s" % local_map
                 break
         self.ports = input_ports
-
-        # Sum all active losses into the total loss.
-        for loss in self._losses:
-            if loss.cost.name in self.ports:
-                self.loss.variable += loss.cost.variable
-        self.ports[self.TOTAL_LOSS] = self.loss
 
         # Map configured ports to the requested outputs.
         for port_name in self.outputs:
@@ -232,37 +210,16 @@ class Graph(JObject):
                     "Expected '%s' as an output, but was not created "
                     "by the graph." % port_name)
 
-        # Make sure that the loss is actually set when requested as an output.
-        if not self.outputs.get(self.TOTAL_LOSS, True):
-            raise ValueError(
-                "Requesting '%s' as an output, but the value has "
-                "not been initialized." % self.TOTAL_LOSS)
-
         # Define SGD update rules
-        if self.loss.variable and self._updates: # and not self.momentum:
+        # TODO(ejhumphrey): Break this out into something more atomic?
+        if self._loss and self._updates:
             for input_name, param_names in self._updates.iteritems():
                 eta = self.inputs.get(input_name)
                 for param_name in param_names:
                     param = self.params[param_name]
-                    gparam = grad(self.loss.variable, param.variable)
+                    gparam = grad(self._loss.variable, param.variable)
                     gparam *= eta.variable
                     self.updates[param.variable] = param.variable - gparam
-
-        # elif self.loss.variable and self._updates and self.momentum:
-        #     for input_name, param_names in self._updates.iteritems():
-        #         eta = self.inputs.get(input_name)
-        #         for param_name in param_names:
-        #             param = self.params[param_name]
-        #             gparam = grad(self.loss.variable, param.variable)
-        #             gparam *= eta.variable
-
-        #             # Create an empty momentum parameter
-        #             mu = shared(param.value * 0.0)
-        #             next_mu = self.momentum * mu - gparam
-        #             next_param = param.variable + self.momentum * next_mu - gparam
-
-        #             self.updates[param.variable] = next_param
-        #             self.updates[mu] = next_mu
 
         self._fx = function(
             inputs=[x.variable for x in self._inputs],

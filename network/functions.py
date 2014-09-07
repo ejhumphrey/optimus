@@ -28,6 +28,10 @@ def sigmoid(x):
     return T.nnet.sigmoid(x)
 
 
+def softmax(x):
+    return T.nnet.softmax(x)
+
+
 def soft_shrink(x, threshold, Q):
     """Write my LaTeX form."""
     raise NotImplementedError("'soft_shrink' is not implemented yet.")
@@ -66,7 +70,8 @@ Activations = {'linear': linear,
                'tanh': tanh,
                'sigmoid': sigmoid,
                'soft_shrink': soft_shrink,
-               'hard_shrink': hard_shrink}
+               'hard_shrink': hard_shrink,
+               'softmax': softmax}
 
 
 def l2norm(x):
