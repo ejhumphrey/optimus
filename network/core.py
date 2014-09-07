@@ -259,7 +259,7 @@ class Parameter(object):
     @value.setter
     def value(self, value):
         """TODO(ejhumphrey): write me."""
-        self.variable.set_value(value.astype(FLOATX))
+        self.variable.set_value(np.asarray(value).astype(FLOATX))
 
     @property
     def name(self):

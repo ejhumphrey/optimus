@@ -121,10 +121,6 @@ class Graph(JObject):
     def nodes(self):
         return named_list(self._nodes)
 
-    # @property
-    # def loss(self):
-    #     return named_list(self._losses)
-
     @property
     def param_values(self):
         return dict([(k, self.params[k].value) for k in self.params])
@@ -162,6 +158,7 @@ class Graph(JObject):
             input_ports.update(node.inputs)
 
         for port in self.outputs.values():
+            # TODO(ejhumphrey): Why is this check here?
             if not port is None:
                 port.reset()
                 input_ports[port.name] = port
