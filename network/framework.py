@@ -210,8 +210,8 @@ class Graph(JObject):
         # Define SGD update rules
         # TODO(ejhumphrey): Break this out into something more atomic?
         if self._loss and self._updates:
-            loss = self.ports.get(self._loss.name, None)
-            if loss is None:
+            self.loss = self.ports.get(self._loss.name, None)
+            if self.loss is None:
                 raise ValueError(
                     "Requested loss `%s` is not among the "
                     "computed ports: \n%s" % (self._loss, self.ports.keys()))
@@ -219,7 +219,7 @@ class Graph(JObject):
                 eta = self.inputs.get(input_name)
                 for param_name in param_names:
                     param = self.params[param_name]
-                    gparam = grad(loss.variable, param.variable)
+                    gparam = grad(self.loss.variable, param.variable)
                     gparam *= eta.variable
                     self.updates[param.variable] = param.variable - gparam
 
@@ -346,7 +346,7 @@ class Driver(object):
         print_freq : int
             Number of iterations between displaying progress.
         """
-        assert self.graph._loss, "Loss not set!"
+        assert self.graph.loss, "Loss not set!"
         self._stats.update(
             checkpoints=[],
             start_time=time.asctime(),
@@ -363,7 +363,7 @@ class Driver(object):
             for n_iter, data in enumerate(source):
                 data.update(**hyperparams)
                 outputs = self.graph(**data)
-                self.update_stats(n_iter, outputs[Graph.TOTAL_LOSS])
+                self.update_stats(n_iter, outputs[self.graph.loss.name])
                 if n_iter > 0 and (n_iter % save_freq) == 0:
                     if not self.output_directory is None:
                         self._save_params(n_iter, param_file_fmt)
@@ -371,7 +371,7 @@ class Driver(object):
                     self.print_last_stats()
                 if n_iter >= max_iter:
                     break
-                if not np.isfinite(outputs[Graph.TOTAL_LOSS]):
+                if not np.isfinite(outputs[self.graph.loss.name]):
                     print "Caught a non-finite loss at iteration: %d " % n_iter
                     break
 
