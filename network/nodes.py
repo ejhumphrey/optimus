@@ -150,6 +150,17 @@ class Unary(Node):
         self._outputs.append(self.output)
 
 
+class Dimshuffle(Unary):
+    def __init__(self, name, axes):
+        Unary.__init__(self, name=name, axes=axes)
+        self.axes = axes
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = self.input.variable.dimshuffle(*self.axes)
+
+
 class Log(Unary):
     def __init__(self, name):
         Unary.__init__(self, name=name)
@@ -645,10 +656,15 @@ class SquaredEuclidean(Node):
     def transform(self):
         """Transform inputs to outputs."""
         assert self.is_ready()
-
-        xA = T.flatten(self.input_a.variable, outdim=2)
-        xB = T.flatten(self.input_b.variable, outdim=2)
-        self.output.variable = T.pow(xA - xB, 2.0).sum(axis=1)
+        if self.input_a.variable.ndim >= 2:
+            xA = T.flatten(self.input_a.variable, outdim=2)
+            xB = T.flatten(self.input_b.variable, outdim=2)
+            axis = 1
+        else:
+            xA = self.input_a.variable
+            xB = self.input_b.variable
+            axis = None
+        self.output.variable = T.pow(xA - xB, 2.0).sum(axis=axis)
 
 
 class L1Magnitude(Unary):

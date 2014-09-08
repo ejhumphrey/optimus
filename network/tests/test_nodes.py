@@ -78,6 +78,19 @@ class NodeTests(unittest.TestCase):
                 expected = np.transpose(expected, axes)
             np.testing.assert_equal(z, expected)
 
+    def test_Dimshuffle(self):
+        x1 = core.Input(name='x1', shape=(2,))
+        a = np.array([3, 1])
+        for axes, shape in zip([('x', 0), (0, 'x')], [(1, 2), (2, 1)]):
+            n = nodes.Dimshuffle('dimshuffle', axes)
+            n.input.connect(x1)
+            n.transform()
+
+            fx = nodes.compile(inputs=n.inputs.values(),
+                               outputs=n.outputs.values())
+
+            np.testing.assert_equal(fx(a)[0].shape, shape)
+
     def test_Log(self):
         x1 = core.Input(name='x1', shape=(2, 2))
         log = nodes.Log('log')
@@ -87,9 +100,9 @@ class NodeTests(unittest.TestCase):
         fx = nodes.compile(inputs=log.inputs.values(),
                            outputs=log.outputs.values())
 
-        a = np.array([[3, -1], [3, 7]])
+        a = np.array([[3, 1], [4, 7]], dtype=np.float32)
         z = fx(a)[0]
-        np.testing.assert_equal(z, np.log(a))
+        np.testing.assert_almost_equal(z, np.log(a))
 
     def test_Gain(self):
         x1 = core.Input(name='x1', shape=(2, 2))
@@ -193,6 +206,21 @@ class NodeTests(unittest.TestCase):
         fx = nodes.compile(inputs=[x1, x2],
                            outputs=n.outputs.values())
         np.testing.assert_equal(fx(a, b)[0], np.power(a - b, 2.0).sum(axis=1))
+
+        x1 = core.Input(name='x1', shape=(None,))
+        x2 = core.Input(name='x2', shape=(None,))
+
+        a = np.array([3, -1])
+        b = np.array([1, -1])
+
+        n = nodes.SquaredEuclidean('sqeuclid')
+        n.input_a.connect(x1)
+        n.input_b.connect(x2)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1, x2],
+                           outputs=n.outputs.values())
+        np.testing.assert_equal(fx(a, b)[0], np.power(a - b, 2.0).sum())
 
 
 if __name__ == "__main__":
