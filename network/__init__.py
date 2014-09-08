@@ -50,6 +50,7 @@ from .nodes import RadialBasis
 from .nodes import CrossProduct
 from .nodes import SelectIndex
 from .nodes import SquaredEuclidean
+from .nodes import Multiply
 
 # Old losses ... deprecated, don't use.
 from .losses import NegativeLogLikelihood

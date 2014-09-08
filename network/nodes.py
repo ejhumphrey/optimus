@@ -637,11 +637,8 @@ class SelectIndex(Node):
         self.output.variable = self.input.variable[row_index, col_index]
 
 
-class SquaredEuclidean(Node):
-    """Squared Euclidean Node
-
-    Computes: z_n = \sum_i(xA_n[i] - xB_n[i])^2
-    """
+class Binary(Node):
+    """Binary Base Node"""
     def __init__(self, name):
         """
 
@@ -652,6 +649,15 @@ class SquaredEuclidean(Node):
         self._inputs.extend([self.input_a, self.input_b])
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
+
+
+class SquaredEuclidean(Binary):
+    """Squared Euclidean Node
+
+    Computes: z_n = \sum_i(xA_n[i] - xB_n[i])^2
+    """
+    def __init__(self, name):
+        Binary.__init__(self, name=name)
 
     def transform(self):
         """Transform inputs to outputs."""
@@ -665,6 +671,17 @@ class SquaredEuclidean(Node):
             xB = self.input_b.variable
             axis = None
         self.output.variable = T.pow(xA - xB, 2.0).sum(axis=axis)
+
+
+class Multiply(Binary):
+    """Compute the product of two inputs."""
+    def __init__(self, name):
+        Binary.__init__(self, name=name)
+
+    def transform(self):
+        """Transform inputs to outputs."""
+        assert self.is_ready()
+        self.output.variable = self.input_a.variable * self.input_b.variable
 
 
 class L1Magnitude(Unary):
