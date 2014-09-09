@@ -49,6 +49,8 @@ from .nodes import RadialBasis
 # Binary Nodes, no params
 from .nodes import CrossProduct
 from .nodes import SelectIndex
+from .nodes import MaxNotIndex
+from .nodes import MinNotIndex
 from .nodes import SquaredEuclidean
 from .nodes import Multiply
 

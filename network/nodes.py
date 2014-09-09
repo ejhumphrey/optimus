@@ -637,6 +637,46 @@ class SelectIndex(Node):
         self.output.variable = self.input.variable[row_index, col_index]
 
 
+class MaxNotIndex(Node):
+    """writeme"""
+    def __init__(self, name):
+        # Input Validation
+        Node.__init__(self, name=name)
+        self.input = core.Port(name=self.__own__("input"))
+        self.index = core.Port(name=self.__own__("index"), shape=[])
+        self._inputs.extend([self.input, self.index])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        """writeme"""
+        assert self.is_ready()
+        index = self.index.variable
+        input_var = self.input.variable
+        assert input_var.ndim == 2
+        self.output.variable = functions.max_not_index(input_var, index)
+
+
+class MinNotIndex(Node):
+    """writeme"""
+    def __init__(self, name):
+        # Input Validation
+        Node.__init__(self, name=name)
+        self.input = core.Port(name=self.__own__("input"))
+        self.index = core.Port(name=self.__own__("index"), shape=[])
+        self._inputs.extend([self.input, self.index])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        """writeme"""
+        assert self.is_ready()
+        index = self.index.variable
+        input_var = self.input.variable
+        assert input_var.ndim == 2
+        self.output.variable = functions.min_not_index(input_var, index)
+
+
 class Binary(Node):
     """Binary Base Node"""
     def __init__(self, name):
