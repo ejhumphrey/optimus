@@ -26,7 +26,6 @@ class Node(core.JObject):
         """writeme."""
         self.name = name
         self.__args__ = dict(**kwargs)
-        self.act_type = 'linear'
         self._numpy_rng = np.random.RandomState()
         self._theano_rng = RandomStreams(self._numpy_rng.randint(2 ** 30))
         self._inputs = []
@@ -416,6 +415,7 @@ class Conv3D(Unary):
             act_type=act_type)
 
         # Make sure the weight_shape argument is formatted properly.
+        self.act_type = act_type
         w_shp = list(weight_shape)
         if len(w_shp) == 3:
             w_shp.insert(1, input_shape[1])
