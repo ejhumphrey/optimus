@@ -79,17 +79,19 @@ class NodeTests(unittest.TestCase):
             np.testing.assert_equal(z, expected)
 
     def test_Dimshuffle(self):
-        x1 = core.Input(name='x1', shape=(2,))
-        a = np.array([3, 1])
-        for axes, shape in zip([('x', 0), (0, 'x')], [(1, 2), (2, 1)]):
-            n = nodes.Dimshuffle('dimshuffle', axes)
+        x1 = core.Input(name='x1', shape=(2, 3))
+        a = np.zeros([2, 3])
+        axes = [('x', 0, 1), (0, 1, 'x'), (1, 'x', 0)]
+        shapes = [(1, 2, 3), (2, 3, 1), (3, 1, 2)]
+        for ax, shp in zip(axes, shapes):
+            n = nodes.Dimshuffle('dimshuffle', ax)
             n.input.connect(x1)
             n.transform()
 
             fx = nodes.compile(inputs=n.inputs.values(),
                                outputs=n.outputs.values())
 
-            np.testing.assert_equal(fx(a)[0].shape, shape)
+            np.testing.assert_equal(fx(a)[0].shape, shp)
 
     def test_Log(self):
         x1 = core.Input(name='x1', shape=(2, 2))
