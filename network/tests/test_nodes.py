@@ -93,6 +93,21 @@ class NodeTests(unittest.TestCase):
 
             np.testing.assert_equal(fx(a)[0].shape, shp)
 
+    def test_Slice(self):
+        x1 = core.Input(name='x1', shape=(2, 3))
+        a = np.arange(6).reshape(2, 3)
+        slices = [(None, 1), (0, None), (1, 0)]
+        ans = [a[:, 1], a[0, :], a[1, 0]]
+        for slc, ans in zip(slices, ans):
+            n = nodes.Slice('slice', slc)
+            n.input.connect(x1)
+            n.transform()
+
+            fx = nodes.compile(inputs=n.inputs.values(),
+                               outputs=n.outputs.values())
+
+            np.testing.assert_equal(fx(a)[0], ans)
+
     def test_Log(self):
         x1 = core.Input(name='x1', shape=(2, 2))
         log = nodes.Log('log')

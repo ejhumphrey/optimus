@@ -25,6 +25,8 @@ from .nodes import Stack
 
 # Unary Nodes, no params, dim-redux
 from .nodes import Dimshuffle
+from .nodes import Flatten
+from .nodes import Slice
 from .nodes import L1Magnitude
 from .nodes import L2Magnitude
 from .nodes import Max

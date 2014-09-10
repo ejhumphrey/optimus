@@ -161,6 +161,37 @@ class Dimshuffle(Unary):
         self.output.variable = self.input.variable.dimshuffle(*self.axes)
 
 
+class Flatten(Unary):
+    def __init__(self, name, ndim):
+        Unary.__init__(self, name=name, ndim=ndim)
+        self.ndim = ndim
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = self.input.variable.flatten(self.ndim)
+
+
+class Slice(Unary):
+    """writeme"""
+    def __init__(self, name, slices):
+        # Input Validation
+        Unary.__init__(self, name=name, slices=slices)
+        self.slices = slices
+
+    def transform(self):
+        """writeme"""
+        assert self.is_ready()
+        slices = []
+        for s in self.slices:
+            if s is None or isinstance(s, tuple):
+                slices.append(slice(s))
+            else:
+                slices.append(s)
+
+        self.output.variable = self.input.variable[tuple(slices)]
+
+
 class Log(Unary):
     def __init__(self, name):
         Unary.__init__(self, name=name)
