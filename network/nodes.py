@@ -87,18 +87,20 @@ class Node(core.JObject):
 
 class Accumulate(Node):
     """Summation node."""
-    def __init__(self, name):
+    def __init__(self, name, num_inputs):
         # Input Validation
         Node.__init__(self, name=name)
-        self.input_list = core.PortList(name=self.__own__("input_list"))
-        self._inputs.append(self.input_list)
+        for n in range(num_inputs):
+            key = "input_%d" % n
+            self.__dict__[key] = core.Port(name=self.__own__(key))
+            self._inputs.append(self.__dict__[key])
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
 
     def transform(self):
         """writeme"""
         assert self.is_ready(), "Not all ports are set."
-        self.output.variable = sum(self.input_list.variable)
+        self.output.variable = sum([x.variable for x in self._inputs])
 
 
 class Concatenate(Node):

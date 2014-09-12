@@ -4,8 +4,6 @@
 import unittest
 
 import numpy as np
-import theano
-import theano.tensor as T
 import optimus.network.nodes as nodes
 import optimus.network.core as core
 
@@ -22,13 +20,16 @@ class NodeTests(unittest.TestCase):
         pass
 
     def test_Accumulate(self):
-        x1 = core.Input(name='x1', shape=(2,2))
-        x2 = core.Input(name='x2', shape=(2,2))
+        x1 = core.Input(name='x1', shape=(2, 2))
+        x2 = core.Input(name='x2', shape=(2, 2))
 
-        acc = nodes.Accumulate('accumulate')
-        acc.input_list.connect(x1)
-        acc.input_list.connect(x2)
+        acc = nodes.Accumulate(name='accumulate', num_inputs=2)
+        acc.input_0.connect(x1)
 
+        with self.assertRaises(AssertionError):
+            acc.transform()
+
+        acc.input_1.connect(x2)
         acc.transform()
 
         fx = nodes.compile(inputs=[x1, x2],
