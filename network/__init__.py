@@ -38,6 +38,7 @@ from .nodes import Sum
 from .nodes import Log
 from .nodes import Normalize
 from .nodes import RectifiedLinear
+from .nodes import SoftRectifiedLinear
 from .nodes import Sigmoid
 from .nodes import Softmax
 from .nodes import Tanh

@@ -42,18 +42,13 @@ def hard_shrink(x, threshold):
     raise NotImplementedError("'hard_shrink' is not implemented yet.")
 
 
-def soft_relu(x, margin, knee=1.0):
+def soft_relu(x, knee=1.0):
     """Log-approximation of half-wave rectification (ReLU)
-
-    Note: standard behavior is monotonically increasing; swapping x and margin
-        will flip the function horizontally.
 
     Parameters
     ----------
     x: symbolic type
         Typically, the independent variable.
-    margin: scalar (symbolic or real-valued)
-        Typically, the margin or offset.
     knee: scalar (symbolic or real-valued)
         Knee of the log-approximation.
 
@@ -62,11 +57,12 @@ def soft_relu(x, margin, knee=1.0):
     y: symbolic type
         Dependent variable.
     """
-    return T.log(1 + T.exp(knee * (x - margin))) / knee
+    return T.log(1 + T.exp(knee * x)) / knee
 
 
 Activations = {'linear': linear,
                'relu': relu,
+               'soft_relu': soft_relu,
                'tanh': tanh,
                'sigmoid': sigmoid,
                'soft_shrink': soft_shrink,

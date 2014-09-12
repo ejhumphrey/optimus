@@ -227,6 +227,19 @@ class RectifiedLinear(Unary):
         self.output.variable = functions.relu(self.input.variable)
 
 
+class SoftRectifiedLinear(Unary):
+    """Apply the (hard) rectified linear function to an input."""
+    def __init__(self, name, knee):
+        Unary.__init__(self, name=name, knee=knee)
+        self.knee = knee
+
+    def transform(self):
+        """In-place transformation"""
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = functions.soft_relu(
+            self.input.variable, self.knee)
+
+
 class Tanh(Unary):
     """Apply the hyperbolic tangent to an input."""
     def __init__(self, name):
