@@ -47,13 +47,15 @@ class NodeTests(unittest.TestCase):
         b = np.array([[1, 2], [3, 4]])
 
         for axis in range(2):
-            cat = nodes.Concatenate('concatenate', axis=axis)
-            cat.input_list.connect(x1)
-            cat.input_list.connect(x2)
-            cat.transform()
+            n = nodes.Concatenate(name='concatenate', num_inputs=2, axis=axis)
+            n.input_0.connect(x1)
+            with self.assertRaises(AssertionError):
+                n.transform()
+            n.input_1.connect(x2)
+            n.transform()
 
             fx = nodes.compile(inputs=[x1, x2],
-                               outputs=[cat.output])
+                               outputs=[n.output])
 
             z = fx(a, b)[0]
             np.testing.assert_equal(z, np.concatenate([a, b], axis=axis))
@@ -65,9 +67,9 @@ class NodeTests(unittest.TestCase):
         b = np.arange(6).reshape(2, 3) + 6
 
         for axes in None, (1, 2, 0), (2, 1, 0):
-            n = nodes.Stack('stack', axes=axes)
-            n.input_list.connect(x1)
-            n.input_list.connect(x2)
+            n = nodes.Stack(name='stack', num_inputs=2, axes=axes)
+            n.input_1.connect(x2)
+            n.input_0.connect(x1)
             n.transform()
 
             fx = nodes.compile(inputs=[x1, x2],

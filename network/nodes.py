@@ -85,11 +85,10 @@ class Node(core.JObject):
         return dict([(v.name, v) for v in self._outputs])
 
 
-class Accumulate(Node):
-    """Summation node."""
-    def __init__(self, name, num_inputs):
+class MultiInput(Node):
+    def __init__(self, name, num_inputs, **kwargs):
         # Input Validation
-        Node.__init__(self, name=name)
+        Node.__init__(self, name=name, num_inputs=num_inputs, **kwargs)
         for n in range(num_inputs):
             key = "input_%d" % n
             self.__dict__[key] = core.Port(name=self.__own__(key))
@@ -97,45 +96,38 @@ class Accumulate(Node):
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
 
+
+class Accumulate(MultiInput):
+    """Summation node."""
     def transform(self):
         """writeme"""
         assert self.is_ready(), "Not all ports are set."
         self.output.variable = sum([x.variable for x in self._inputs])
 
 
-class Concatenate(Node):
-    """
-
-    """
-    def __init__(self, name, axis=-1):
-        Node.__init__(self, name=name, axis=axis)
-        self.input_list = core.PortList(name=self.__own__("input_list"))
-        self._inputs.append(self.input_list)
-        self.output = core.Port(name=self.__own__('output'))
-        self._outputs.append(self.output)
+class Concatenate(MultiInput):
+    """Concatenate a set of inputs."""
+    def __init__(self, name, num_inputs, axis=-1):
+        MultiInput.__init__(self, name=name, num_inputs=num_inputs, axis=axis)
         self.axis = axis
 
     def transform(self):
         """In-place transformation"""
         assert self.is_ready(), "Not all ports are set."
-        self.output.variable = T.concatenate(self.input_list.variable,
-                                             axis=self.axis)
+        self.output.variable = T.concatenate(
+            [x.variable for x in self._inputs], axis=self.axis)
 
 
-class Stack(Node):
+class Stack(MultiInput):
     """Form a rank+1 tensor of a set of inputs; optionally reorder the axes."""
-    def __init__(self, name, axes=None):
-        Node.__init__(self, name=name, axes=axes)
-        self.input_list = core.PortList(name=self.__own__("input_list"))
-        self._inputs.append(self.input_list)
-        self.output = core.Port(name=self.__own__('output'))
-        self._outputs.append(self.output)
+    def __init__(self, name, num_inputs, axes=None):
+        MultiInput.__init__(self, name=name, num_inputs=num_inputs, axes=axes)
         self.axes = axes
 
     def transform(self):
         """In-place transformation"""
         assert self.is_ready(), "Not all ports are set."
-        output = T.stack(*self.input_list.variable)
+        output = T.stack(*list([x.variable for x in self._inputs]))
         if self.axes:
             output = T.transpose(output, axes=self.axes)
         self.output.variable = output
