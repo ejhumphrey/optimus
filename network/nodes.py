@@ -479,6 +479,15 @@ class Conv3D(Unary):
 
         self.weights.value = weight_values.astype(FLOATX)
 
+    def enable_dropout(self):
+        self.dropout = core.Port(shape=None, name=self.__own__('dropout'))
+        self._inputs.append(self.dropout)
+
+    def disable_dropout(self):
+        if self.dropout:
+            self._inputs.remove(self.dropout)
+        self.dropout = None
+
     def transform(self):
         """writeme."""
         assert self.is_ready(), "Input ports not set."
@@ -493,11 +502,10 @@ class Conv3D(Unary):
         output = self.activation(output + bias)
 
         if self.dropout:
-            output_shape = list(self.output.shape)
+            print "Performing dropout in %s" % self.name
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
-                size=output_shape,
-                p=1.0 - dropout)
+                size=self.bias.shape, p=1.0 - dropout)
 
             output *= selector.dimshuffle('x', 0, 'x', 'x') / (1.0 - dropout)
 
