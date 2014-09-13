@@ -8,6 +8,10 @@ import optimus.network.nodes as nodes
 import optimus.network.core as core
 
 
+def __relu__(x):
+    return 0.5*(np.abs(x) + x)
+
+
 class NodeTests(unittest.TestCase):
 
     def setUp(self):
@@ -245,7 +249,7 @@ class NodeTests(unittest.TestCase):
     def test_Affine_linear(self):
         x1 = core.Input(name='x1', shape=(None, 2))
         a = np.array([[3, -1], [4, 7]])
-        w = np.array([[1, -1], [-2, -2], [3, -3]]).T
+        w = np.array([[1, -1], [2, -2], [3, -3]]).T
         b = np.ones(3)
 
         n = nodes.Affine(
@@ -265,7 +269,7 @@ class NodeTests(unittest.TestCase):
     def test_Affine_relu(self):
         x1 = core.Input(name='x1', shape=(None, 2))
         a = np.array([[3, -1], [4, 7]])
-        w = np.array([[1, -1], [-2, -2], [3, -3]]).T
+        w = np.array([[1, -1], [2, -2], [3, -3]]).T
         b = np.ones(3)
 
         n = nodes.Affine(
@@ -280,17 +284,13 @@ class NodeTests(unittest.TestCase):
         n.transform()
 
         fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
-
-        def relu(x):
-            return 0.5*(np.abs(x) + x)
-
-        np.testing.assert_equal(fx(a)[0], relu(np.dot(a, w) + b))
+        np.testing.assert_equal(fx(a)[0], __relu__(np.dot(a, w) + b))
 
     def test_Affine_dropout(self):
         x1 = core.Input(name='x1', shape=(None, 2))
         dropout = core.Input(name='dropout', shape=None)
         a = np.array([[3, -1], [4, 7]])
-        w = np.array([[1, -1], [-2, -2], [3, -3]]).T
+        w = np.array([[1, -1], [2, -2], [3, -3]]).T
         b = np.ones(3)
 
         n = nodes.Affine(
@@ -303,12 +303,111 @@ class NodeTests(unittest.TestCase):
         n.enable_dropout()
 
         n.input.connect(x1)
+        with self.assertRaises(AssertionError):
+            n.transform()
         n.dropout.connect(dropout)
         n.transform()
 
         fx = nodes.compile(inputs=[x1, dropout], outputs=n.outputs.values())
 
         np.testing.assert_equal(fx(a, 0.0)[0], np.dot(a, w) + b)
+        self.assertGreaterEqual(np.equal(fx(a, 0.9)[0], 0.0).sum(), 1)
+
+    def test_Conv3D_linear(self):
+        x1 = core.Input(name='x1', shape=(None, 1, 2, 3))
+        a = np.array([[3, -1], [4, 7], [2, -6]]).reshape(2, 3)
+        w = np.array([[[1], [-2]],
+                     [[-3], [4]],
+                     [[5], [-6]]]).reshape(3, 2, 1)
+        b = np.arange(3)
+
+        # Note that convolutions flip the kernels
+        z = np.array([[(a*wi[::-1]).sum(axis=0) + bi
+                      for wi, bi in zip(w, b)]])
+
+        n = nodes.Conv3D(
+            name='conv3d',
+            input_shape=(None, 1, 2, 3),
+            weight_shape=(3, 1, 2, 1),
+            act_type='linear')
+
+        n.weights.value = w.reshape(3, 1, 2, 1)
+        n.bias.value = b
+
+        n.input.connect(x1)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+        np.testing.assert_equal(fx(a.reshape(1, 1, 2, 3))[0],
+                                z.reshape(1, 3, 1, 3))
+
+    def test_Conv3D_relu(self):
+        x1 = core.Input(name='x1', shape=(None, 1, 2, 3))
+        a = np.array([[3, -1], [4, 7], [2, -6]]).reshape(2, 3)
+        w = np.array([[[1], [-2]],
+                     [[-3], [4]],
+                     [[5], [-6]]]).reshape(3, 2, 1)
+        b = np.arange(3)
+
+        # Note that convolutions flip the kernels
+        z = np.array([[(a*wi[::-1]).sum(axis=0) + bi
+                      for wi, bi in zip(w, b)]])
+
+        # Reshape from convenience
+        a = a.reshape(1, 1, 2, 3)
+        z = z.reshape(1, 3, 1, 3)
+
+        n = nodes.Conv3D(
+            name='conv3d',
+            input_shape=(None, 1, 2, 3),
+            weight_shape=(3, 1, 2, 1),
+            act_type='relu')
+
+        n.weights.value = w.reshape(3, 1, 2, 1)
+        n.bias.value = b
+
+        n.input.connect(x1)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+        np.testing.assert_equal(fx(a)[0], __relu__(z))
+
+    def test_Conv3D_dropout(self):
+        x1 = core.Input(name='x1', shape=(None, 1, 2, 3))
+        dropout = core.Input(name='dropout', shape=None)
+        a = np.array([[3, -1], [4, 7], [2, -6]]).reshape(2, 3)
+        w = np.array([[[1], [-2]],
+                     [[-3], [4]],
+                     [[5], [-6]]]).reshape(3, 2, 1)
+        b = np.arange(3)
+
+        # Note that convolutions flip the kernels
+        z = np.array([[(a*wi[::-1]).sum(axis=0) + bi
+                      for wi, bi in zip(w, b)]])
+
+        # Reshape from convenience
+        a = a.reshape(1, 1, 2, 3)
+        z = z.reshape(1, 3, 1, 3)
+
+        n = nodes.Conv3D(
+            name='conv3d',
+            input_shape=(None, 1, 2, 3),
+            weight_shape=(3, 1, 2, 1),
+            act_type='linear')
+
+        n.enable_dropout()
+        n.weights.value = w.reshape(3, 1, 2, 1)
+        n.bias.value = b
+
+        n.input.connect(x1)
+        with self.assertRaises(AssertionError):
+            n.transform()
+        n.dropout.connect(dropout)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1, dropout], outputs=n.outputs.values())
+
+        np.testing.assert_equal(fx(a, 0.0)[0], z)
         self.assertGreaterEqual(np.equal(fx(a, 0.9)[0], 0.0).sum(), 1)
 
 if __name__ == "__main__":
