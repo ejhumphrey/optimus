@@ -3,14 +3,14 @@ import numpy as np
 from theano.tensor import grad
 from collections import OrderedDict
 from theano import function
-from theano import shared
+# from theano import shared
 import time
 import os
 
 from . import json
 from .core import JObject
-from .core import Port
-from optimus.util import concatenate_data
+# from .core import Port
+# from optimus.util import concatenate_data
 
 
 def named_list(items):
@@ -32,6 +32,10 @@ class ConnectionManager(object):
             edges = list()
         self._connection_map = dict()
         for source, sink in edges:
+            if not hasattr(source, 'variable'):
+                raise ValueError("Invalid source: %s" % source)
+            if not hasattr(sink, 'variable'):
+                raise ValueError("Invalid sink: %s" % sink)
             self.add_edge(source, sink)
 
     def add_edge(self, source, sink):
@@ -179,12 +183,17 @@ class Graph(JObject):
                         if self.verbose:
                             print "Connecting %s -> %s" % (source_name,
                                                            sink_name)
-                        input_ports[sink_name].connect(
-                            input_ports[source_name])
+                        source = input_ports.get(source_name, None)
+                        if source is None:
+                            raise ValueError(
+                                "Requested port `%s` does not exist; "
+                                "Did you forget to include its node? "
+                                "" % source_name)
+                        input_ports[sink_name].connect(source)
             for node in nodes:
                 if node.is_ready():
                     if self.verbose:
-                        print "Transforming %s" % node
+                        print ">>> Transforming %s" % node
                     node.transform()
                     self.params.update(node.params)
                     input_ports.update(node.params)
@@ -194,7 +203,7 @@ class Graph(JObject):
             if nothing_happened:
                 print "Your logic is poor, but we can help."
                 print "\t%s" % local_map
-                break
+                return
         self.ports = input_ports
 
         # Map configured ports to the requested outputs.
