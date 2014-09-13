@@ -242,6 +242,74 @@ class NodeTests(unittest.TestCase):
                            outputs=n.outputs.values())
         np.testing.assert_equal(fx(a, b)[0], np.power(a - b, 2.0).sum())
 
+    def test_Affine_linear(self):
+        x1 = core.Input(name='x1', shape=(None, 2))
+        a = np.array([[3, -1], [4, 7]])
+        w = np.array([[1, -1], [-2, -2], [3, -3]]).T
+        b = np.ones(3)
+
+        n = nodes.Affine(
+            name='affine',
+            input_shape=(None, 2),
+            output_shape=(None, 3),
+            act_type='linear')
+        n.weights.value = w
+        n.bias.value = b
+
+        n.input.connect(x1)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+        np.testing.assert_equal(fx(a)[0], np.dot(a, w) + b)
+
+    def test_Affine_relu(self):
+        x1 = core.Input(name='x1', shape=(None, 2))
+        a = np.array([[3, -1], [4, 7]])
+        w = np.array([[1, -1], [-2, -2], [3, -3]]).T
+        b = np.ones(3)
+
+        n = nodes.Affine(
+            name='affine',
+            input_shape=(None, 2),
+            output_shape=(None, 3),
+            act_type='relu')
+        n.weights.value = w
+        n.bias.value = b
+
+        n.input.connect(x1)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+
+        def relu(x):
+            return 0.5*(np.abs(x) + x)
+
+        np.testing.assert_equal(fx(a)[0], relu(np.dot(a, w) + b))
+
+    def test_Affine_dropout(self):
+        x1 = core.Input(name='x1', shape=(None, 2))
+        dropout = core.Input(name='dropout', shape=None)
+        a = np.array([[3, -1], [4, 7]])
+        w = np.array([[1, -1], [-2, -2], [3, -3]]).T
+        b = np.ones(3)
+
+        n = nodes.Affine(
+            name='affine',
+            input_shape=(None, 2),
+            output_shape=(None, 3),
+            act_type='linear')
+        n.weights.value = w
+        n.bias.value = b
+        n.enable_dropout()
+
+        n.input.connect(x1)
+        n.dropout.connect(dropout)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1, dropout], outputs=n.outputs.values())
+
+        np.testing.assert_equal(fx(a, 0.0)[0], np.dot(a, w) + b)
+        self.assertGreaterEqual(np.equal(fx(a, 0.9)[0], 0.0).sum(), 1)
 
 if __name__ == "__main__":
     unittest.main()

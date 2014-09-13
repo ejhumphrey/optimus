@@ -376,7 +376,7 @@ class Affine(Unary):
             print "Performing dropout in %s" % self.name
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
-                size=self.bias.shape, p=1.0 - dropout)
+                size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
             # Scale up by the ratio of the number of units that are 'off'.
             z_out *= selector.dimshuffle('x', 0) / (1.0 - dropout)
 
@@ -505,7 +505,7 @@ class Conv3D(Unary):
             print "Performing dropout in %s" % self.name
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
-                size=self.bias.shape, p=1.0 - dropout)
+                size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
 
             output *= selector.dimshuffle('x', 0, 'x', 'x') / (1.0 - dropout)
 
