@@ -27,17 +27,19 @@ class NodeTests(unittest.TestCase):
         x1 = core.Input(name='x1', shape=(2, 2))
         x2 = core.Input(name='x2', shape=(2, 2))
 
-        acc = nodes.Accumulate(name='accumulate', num_inputs=2)
-        acc.input_0.connect(x1)
+        n = nodes.Accumulate(name='accumulate', num_inputs=2)
+        n.input_0.connect(x1)
 
         with self.assertRaises(AssertionError):
-            acc.transform()
+            n.transform()
 
-        acc.input_1.connect(x2)
-        acc.transform()
+        n.input_1.connect(x2)
+        self.assertIsNone(n.output.shape)
+        n.transform()
+        self.assertEqual(n.output.shape, (2, 2))
 
         fx = nodes.compile(inputs=[x1, x2],
-                           outputs=[acc.output])
+                           outputs=[n.output])
         a = np.array([[3, -1], [3, 7]])
         b = np.array([[1, 2], [3, 4]])
 

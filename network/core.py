@@ -87,7 +87,7 @@ class Port(object):
     def connect(self, source):
         """TODO(ejhumphrey): write me."""
         self._variable = source._variable
-        # Save shape too?
+        self.shape = source.shape
 
     @property
     def variable(self):
@@ -105,68 +105,6 @@ class Port(object):
         if self.shape is None:
             return None
         return len(self.shape)
-
-
-class PortList(object):
-    """writeme
-
-    Doesn't do any shape validation so... guess that's more for convenience
-    than anything else.
-    """
-    def __init__(self, name):
-        self._variable = []
-        self.name = name
-
-    # I don't know that a port ever needs to be serialized....
-    @property
-    def __json__(self):
-        return dict(name=self.name, type=self.type)
-
-    @classmethod
-    def __json_init__(cls, **kwargs):
-        return cls(**kwargs)
-
-    def __repr__(self):
-        """Render the object as an unambiguous string."""
-        return '<%s: %s>' % (self.type, self.name)
-
-    @property
-    def type(self):
-        """TODO(ejhumphrey): write me."""
-        return self.__class__.__name__
-
-    def reset(self):
-        """TODO(ejhumphrey): write me."""
-        self._variable = []
-
-    def connect(self, source):
-        """Add a data source to the list of inputs.
-
-        Parameters
-        ----------
-        source : core.Port
-            Source to add to the collection of inputs.
-        """
-        self._variable.append(source.variable)
-
-    @property
-    def variable(self):
-        """TODO(ejhumphrey): write me."""
-        return self._variable
-
-    # TODO(ejhumphrey): Is this necessary??
-    # --------------------------------------
-    # @variable.setter
-    # def variable(self, value):
-    #     """TODO(ejhumphrey): write me."""
-    #     self._variable[0] = value
-
-    # @property
-    # def ndim(self):
-    #     """TODO(ejhumphrey): write me."""
-    #     if self.shape is None:
-    #         return None
-    #     return len(self.shape)
 
 
 class Input(Port):

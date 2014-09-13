@@ -103,6 +103,7 @@ class Accumulate(MultiInput):
         """writeme"""
         assert self.is_ready(), "Not all ports are set."
         self.output.variable = sum([x.variable for x in self._inputs])
+        self.output.shape = self._inputs[0].shape
 
 
 class Concatenate(MultiInput):
@@ -142,6 +143,9 @@ class Unary(Node):
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
 
+    def transform(self):
+        assert self.is_ready(), "Not all ports are set."
+
 
 class Dimshuffle(Unary):
     def __init__(self, name, axes):
@@ -150,7 +154,7 @@ class Dimshuffle(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = self.input.variable.dimshuffle(*self.axes)
 
 
@@ -161,7 +165,7 @@ class Flatten(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = self.input.variable.flatten(self.ndim)
 
 
@@ -174,7 +178,7 @@ class Slice(Unary):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        Unary.transform(self)
         slices = []
         for s in self.slices:
             if s is None or isinstance(s, tuple):
@@ -191,7 +195,7 @@ class Log(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = T.log(self.input.variable)
 
 
@@ -201,7 +205,7 @@ class Sigmoid(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = functions.sigmoid(self.input.variable)
 
 
@@ -212,7 +216,7 @@ class Softmax(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = T.nnet.softmax(self.input.variable)
 
 
@@ -223,7 +227,7 @@ class RectifiedLinear(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = functions.relu(self.input.variable)
 
 
@@ -235,7 +239,7 @@ class SoftRectifiedLinear(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = functions.soft_relu(
             self.input.variable, self.knee)
 
@@ -247,7 +251,7 @@ class Tanh(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = T.tanh(self.input.variable)
 
 
@@ -259,7 +263,7 @@ class Sum(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         if self.axis is None:
             self.output.variable = T.sum(self.input.variable)
         else:
@@ -274,7 +278,7 @@ class Mean(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         if self.axis is None:
             self.output.variable = T.mean(self.input.variable)
         else:
@@ -289,7 +293,7 @@ class Max(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         if self.axis is None:
             self.output.variable = T.max(self.input.variable)
         else:
@@ -304,7 +308,7 @@ class Min(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         if self.axis is None:
             self.output.variable = T.min(self.input.variable)
         else:
@@ -320,7 +324,7 @@ class Gain(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         self.output.variable = self.weight.variable * self.input.variable
 
 
@@ -366,7 +370,7 @@ class Affine(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         weights = self.weights.variable
         bias = self.bias.variable.dimshuffle('x', 0)
 
@@ -490,7 +494,7 @@ class Conv3D(Unary):
 
     def transform(self):
         """writeme."""
-        assert self.is_ready(), "Input ports not set."
+        Unary.transform(self)
         weights = self.weights.variable
         bias = self.bias.variable.dimshuffle('x', 0, 'x', 'x')
         output = T.nnet.conv.conv2d(
@@ -523,11 +527,6 @@ class RadialBasis(Unary):
             input_shape=input_shape,
             output_shape=output_shape)
 
-        # TODO(ejhumphrey): This is super important but kind of a hack. Think
-        #   on this and come up with something better.
-        self.input.shape = input_shape
-        self.output.shape = output_shape
-
         n_in = int(np.prod(input_shape[1:]))
         n_out = int(np.prod(output_shape[1:]))
         weight_shape = [n_in, n_out]
@@ -537,7 +536,7 @@ class RadialBasis(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         weights = self.weights.variable
 
         x_in = T.flatten(self.input.variable, outdim=2)
@@ -649,7 +648,7 @@ class Normalize(Unary):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        Unary.transform(self)
         input_var = self.input.variable.flatten(2)
 
         if self.mode == 'l1':
@@ -777,7 +776,7 @@ class L1Magnitude(Unary):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        Unary.transform(self)
         self.output.variable = T.sum(T.abs_(self.input.variable),
                                      axis=self.axis)
 
@@ -789,6 +788,6 @@ class L2Magnitude(Unary):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        Unary.transform(self)
         self.output.variable = T.sqrt(T.sum(T.pow(self.input.variable, 2.0),
                                             axis=self.axis))
