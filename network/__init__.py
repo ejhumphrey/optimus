@@ -37,6 +37,7 @@ from .nodes import Sum
 # Unary Nodes, no params
 from .nodes import Log
 from .nodes import Normalize
+from .nodes import NormalizeDim
 from .nodes import RectifiedLinear
 from .nodes import SoftRectifiedLinear
 from .nodes import Sigmoid
