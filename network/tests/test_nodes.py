@@ -201,6 +201,21 @@ class NodeTests(unittest.TestCase):
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
+    def test_NormalizeDim(self):
+        x1 = core.Input(name='x1', shape=(1, 2, 3))
+        a = np.array([[[3, 1, -1], [4, 0, 7]]], dtype=np.float32)
+        expected = [np.sign(a),
+                    a / np.sqrt(np.array([25, 1, 50])).reshape(1, 1, 3),
+                    a / np.sqrt(np.array([11, 65])).reshape(1, 2, 1)]
+        for axis, ans in enumerate(expected):
+            n = nodes.NormalizeDim('l2norm', axis=axis, mode='l2')
+            n.input.connect(x1)
+            n.transform()
+
+            fx = nodes.compile(inputs=n.inputs.values(),
+                               outputs=n.outputs.values())
+            np.testing.assert_almost_equal(fx(a)[0], ans)
+
     def test_SelectIndex(self):
         x1 = core.Input(name='x1', shape=(None, 2))
         idx = core.Input(name='idx', shape=(None,), dtype='int32')

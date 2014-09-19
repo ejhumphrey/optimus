@@ -662,6 +662,32 @@ class Normalize(Unary):
         self.output.variable = self.scale_factor * self.input.variable / scalar
 
 
+class NormalizeDim(Unary):
+    """
+
+    """
+    def __init__(self, name, axis, mode='l2'):
+        Unary.__init__(self, name=name, axis=axis, mode=mode)
+        self.mode = mode
+        self.axis = axis
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        input_var = self.input.variable
+
+        if self.mode == 'l1':
+            scalar = T.sum(T.abs_(input_var), axis=self.axis)
+        elif self.mode == 'l2':
+            scalar = T.sqrt(T.sum(T.abs_(input_var)**2.0, axis=self.axis))
+
+        scalar += 1.0 * T.eq(scalar, 0)
+        new_shape = range(self.input.variable.ndim - 1)
+        new_shape.insert(self.axis, 'x')
+        scalar = scalar.dimshuffle(*new_shape)
+        self.output.variable = self.input.variable / scalar
+
+
 class SelectIndex(Node):
     """writeme"""
     def __init__(self, name):
