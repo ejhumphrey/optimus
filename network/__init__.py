@@ -57,6 +57,7 @@ from .nodes import MaxNotIndex
 from .nodes import MinNotIndex
 from .nodes import SquaredEuclidean
 from .nodes import Multiply
+from .nodes import WeightDecay
 
 # Old losses ... deprecated, don't use.
 from .losses import NegativeLogLikelihood

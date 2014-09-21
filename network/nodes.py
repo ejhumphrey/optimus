@@ -817,3 +817,22 @@ class L2Magnitude(Unary):
         Unary.transform(self)
         self.output.variable = T.sqrt(T.sum(T.pow(self.input.variable, 2.0),
                                             axis=self.axis))
+
+
+class WeightDecay(Node):
+
+    """Single input / output nodes."""
+    def __init__(self, name, **kwargs):
+        Node.__init__(self, name=name, **kwargs)
+        self.input = core.Port(name=self.__own__('input'))
+        self._inputs.append(self.input)
+        self.weight = core.Port(name=self.__own__('weight'))
+        self._inputs.append(self.weight)
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        assert self.is_ready(), "Not all ports are set."
+        x_in = self.input.variable.flatten(2)
+        w_mag = T.sqrt(T.sum(T.pow(x_in, 2.0), axis=-1))
+        self.output.variable = self.weight.variable * T.mean(w_mag)
