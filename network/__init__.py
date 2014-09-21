@@ -37,6 +37,7 @@ from .nodes import Sum
 # Unary Nodes, no params
 from .nodes import Log
 from .nodes import Normalize
+from .nodes import NormalizeDim
 from .nodes import RectifiedLinear
 from .nodes import SoftRectifiedLinear
 from .nodes import Sigmoid
@@ -56,6 +57,7 @@ from .nodes import MaxNotIndex
 from .nodes import MinNotIndex
 from .nodes import SquaredEuclidean
 from .nodes import Multiply
+from .nodes import WeightDecay
 
 # Old losses ... deprecated, don't use.
 from .losses import NegativeLogLikelihood
