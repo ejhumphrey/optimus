@@ -23,11 +23,11 @@ class NodeTests(unittest.TestCase):
     def test_Node(self):
         pass
 
-    def test_Accumulate(self):
+    def test_Add(self):
         x1 = core.Input(name='x1', shape=(2, 2))
         x2 = core.Input(name='x2', shape=(2, 2))
 
-        n = nodes.Accumulate(name='accumulate', num_inputs=2)
+        n = nodes.Add(name='accumulate', num_inputs=2)
         n.input_0.connect(x1)
 
         with self.assertRaises(AssertionError):
@@ -45,6 +45,21 @@ class NodeTests(unittest.TestCase):
 
         z = fx(a, b)[0]
         np.testing.assert_equal(z, np.array([[4, 1], [6, 11]]))
+
+    @unittest.skip("Not fully implemented yet.")
+    def test_Bincount(self):
+        x1 = core.Input(name='x1', shape=(None,))
+
+        n = nodes.Bincount(name='counter', max_int=3)
+        n.input.connect(x1)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x1], outputs=[n.counts])
+        a = np.array([3, 0, 3, 1])
+
+        np.testing.assert_equal(n.counts.value, np.array([0, 0, 0, 0]))
+        np.testing.assert_equal(fx(a)[0], np.array([1, 1, 0, 2]))
+        np.testing.assert_equal(fx(a)[0], np.array([2, 2, 0, 4]))
 
     def test_Concatenate(self):
         x1 = core.Input(name='x1', shape=(2, 2))
@@ -130,20 +145,22 @@ class NodeTests(unittest.TestCase):
         z = fx(a)[0]
         np.testing.assert_almost_equal(z, np.log(a))
 
-    def test_Gain(self):
+    def test_Multiply(self):
         x1 = core.Input(name='x1', shape=(2, 2))
-        gain = nodes.Gain('gain')
-        gain.input.connect(x1)
-        gain.transform()
-
-        fx = nodes.compile(inputs=gain.inputs.values(),
-                           outputs=gain.outputs.values())
-
         a = np.array([[3, -1], [3, 7]])
-        np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
 
-        gain.weight.value = np.array(-1.0)
-        np.testing.assert_equal(fx(a)[0], -1*a)
+        for w, shp in zip([-1, a], [None, a.shape]):
+            n = nodes.Multiply(name='gain', weight_shape=shp)
+            n.input.connect(x1)
+            n.transform()
+
+            fx = nodes.compile(inputs=n.inputs.values(),
+                               outputs=n.outputs.values())
+
+            np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
+
+            n.weight.value = w
+            np.testing.assert_equal(fx(a)[0], w*a)
 
     def test_Max(self):
         x1 = core.Input(name='x1', shape=(2, 2))
@@ -233,35 +250,42 @@ class NodeTests(unittest.TestCase):
         np.testing.assert_equal(fx(a, i)[0], np.array([-1, 4]))
 
     def test_SquaredEuclidean(self):
-        x1 = core.Input(name='x1', shape=(None, 2))
-        x2 = core.Input(name='x2', shape=(None, 2))
+        a1 = np.array([[3, -1], [4, 7]])
+        b1 = np.array([[1, -1], [4, 7]])
+        a2 = np.array([3, -1])
+        b2 = np.array([1, -1])
 
-        a = np.array([[3, -1], [4, 7]])
-        b = np.array([[1, -1], [4, 7]])
+        z1 = np.power(a1 - b1, 2.0).sum(axis=1)
+        z2 = np.power(a2 - b2, 2.0).sum()
+        for a, b, z in zip([a1, a2], [b1, b2], [z1, z2]):
+            x1 = core.Input(name='x1', shape=a.shape)
+            x2 = core.Input(name='x2', shape=b.shape)
+            n = nodes.SquaredEuclidean('sqeuclid')
+            n.input_a.connect(x1)
+            n.input_b.connect(x2)
+            n.transform()
 
-        n = nodes.SquaredEuclidean('sqeuclid')
-        n.input_a.connect(x1)
-        n.input_b.connect(x2)
-        n.transform()
+            fx = nodes.compile(inputs=[x1, x2],
+                               outputs=n.outputs.values())
+            np.testing.assert_equal(fx(a, b)[0], z)
 
-        fx = nodes.compile(inputs=[x1, x2],
-                           outputs=n.outputs.values())
-        np.testing.assert_equal(fx(a, b)[0], np.power(a - b, 2.0).sum(axis=1))
+    def test_Product(self):
+        a1 = np.array([[3, -1], [4, 7]])
+        b1 = np.array([[1, -1], [4, 7]])
+        a2 = np.array([3, -1])
+        b2 = np.array([1, -1])
 
-        x1 = core.Input(name='x1', shape=(None,))
-        x2 = core.Input(name='x2', shape=(None,))
+        for a, b in zip([a1, a2], [b1, b2]):
+            x1 = core.Input(name='x1', shape=a.shape)
+            x2 = core.Input(name='x2', shape=b.shape)
+            n = nodes.Product('product')
+            n.input_a.connect(x1)
+            n.input_b.connect(x2)
+            n.transform()
 
-        a = np.array([3, -1])
-        b = np.array([1, -1])
-
-        n = nodes.SquaredEuclidean('sqeuclid')
-        n.input_a.connect(x1)
-        n.input_b.connect(x2)
-        n.transform()
-
-        fx = nodes.compile(inputs=[x1, x2],
-                           outputs=n.outputs.values())
-        np.testing.assert_equal(fx(a, b)[0], np.power(a - b, 2.0).sum())
+            fx = nodes.compile(inputs=[x1, x2],
+                               outputs=n.outputs.values())
+            np.testing.assert_equal(fx(a, b)[0], a*b)
 
     def test_Affine_linear(self):
         x1 = core.Input(name='x1', shape=(None, 2))

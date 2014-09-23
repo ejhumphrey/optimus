@@ -97,7 +97,7 @@ class MultiInput(Node):
         self._outputs.append(self.output)
 
 
-class Accumulate(MultiInput):
+class Add(MultiInput):
     """Summation node."""
     def transform(self):
         """writeme"""
@@ -315,11 +315,15 @@ class Min(Unary):
             self.output.variable = T.min(self.input.variable, axis=self.axis)
 
 
-class Gain(Unary):
-    """Apply a scalar gain to an input."""
-    def __init__(self, name):
-        Unary.__init__(self, name=name)
-        self.weight = core.Parameter(shape=None, name=self.__own__('weight'))
+class Multiply(Unary):
+    """Multiply an input by an equivalently shaped set of weights.
+
+    See also: Product, which multiplies two separate inputs.
+    """
+    def __init__(self, name, weight_shape):
+        Unary.__init__(self, name=name, weight_shape=weight_shape)
+        self.weight = core.Parameter(
+            shape=weight_shape, name=self.__own__('weight'))
         self._params.append(self.weight)
 
     def transform(self):
@@ -518,7 +522,11 @@ class Conv3D(Unary):
 
 
 class RadialBasis(Unary):
-    """Radial Basis Layer, i.e. L2-Distance, with internal weights."""
+    """Radial Basis Layer, i.e. L2-Distance, with internal weights.
+
+    See also: SquaredEuclidean, which computes the distance between two
+        separate inputs.
+    """
     def __init__(self, name, input_shape, output_shape):
         Unary.__init__(
             self,
@@ -765,6 +773,8 @@ class SquaredEuclidean(Binary):
     """Squared Euclidean Node
 
     Computes: z_n = \sum_i(xA_n[i] - xB_n[i])^2
+
+    See also: RadialBasis, which maintains internal parameters.
     """
     def __init__(self, name):
         Binary.__init__(self, name=name)
@@ -783,8 +793,11 @@ class SquaredEuclidean(Binary):
         self.output.variable = T.pow(xA - xB, 2.0).sum(axis=axis)
 
 
-class Multiply(Binary):
-    """Compute the product of two inputs."""
+class Product(Binary):
+    """Compute the elementwise product of two inputs.
+
+    See also: Multiply, which maintains internal parameters.
+    """
     def __init__(self, name):
         Binary.__init__(self, name=name)
 
@@ -792,6 +805,23 @@ class Multiply(Binary):
         """Transform inputs to outputs."""
         assert self.is_ready()
         self.output.variable = self.input_a.variable * self.input_b.variable
+
+
+class Divide(Node):
+    """Compute the ratio of two inputs."""
+    def __init__(self, name):
+        Node.__init__(self, name=name)
+        self.numerator = core.Port(name=self.__own__("numerator"))
+        self.denominator = core.Port(name=self.__own__("denominator"))
+        self._inputs.extend([self.numerator, self.denominator])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        """Transform inputs to outputs."""
+        assert self.is_ready()
+        denom = (self.denominator.variable == 0) + self.denominator.variable
+        self.output.variable = self.numerator.variable / denom
 
 
 class L1Magnitude(Unary):
@@ -835,3 +865,40 @@ class WeightDecay(Node):
         x_in = self.input.variable.flatten(2)
         w_mag = T.sqrt(T.sum(T.pow(x_in, 2.0), axis=-1))
         self.output.variable = self.weight.variable * T.mean(w_mag)
+
+
+# class Accumulate(Unary):
+#     """In-place addition, e.g. z += x"""
+#     def __init__(self, name, input_shape):
+#         Unary.__init__(
+#             self,
+#             name=name,
+#             input_shape=input_shape)
+
+#         self.input.shape = input_shape
+#         self.weights = core.Parameter(
+#             shape=input_shape, name=self.__own__('weights'))
+
+#     def transform(self):
+#         """In-place transformation"""
+#         Unary.transform(self)
+#         self.weights.variable += self.input.variable
+
+
+# class Bincount(Unary):
+#     """In-place addition, e.g. z += x"""
+#     def __init__(self, name, max_int):
+#         Unary.__init__(
+#             self,
+#             name=name,
+#             max_int=max_int)
+#         self.max_int = max_int
+#         self.counts = core.Parameter(
+#             shape=(max_int + 1,), name=self.__own__('counts'))
+
+#     def transform(self):
+#         """In-place transformation"""
+#         Unary.transform(self)
+#         counts = T.stack([T.sum(T.eq(self.input.variable, n))
+#                           for n in range(self.max_int + 1)])
+#         self.counts._variable += counts.flatten(1)

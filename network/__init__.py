@@ -19,7 +19,7 @@ from .core import Parameter
 from .core import Port
 
 # Multi-Input Nodes
-from .nodes import Accumulate
+from .nodes import Add
 from .nodes import Concatenate
 from .nodes import Stack
 
@@ -45,9 +45,10 @@ from .nodes import Softmax
 from .nodes import Tanh
 
 # Unary Nodes, with params
+# from .nodes import Accumulate
 from .nodes import Affine
 from .nodes import Conv3D
-from .nodes import Gain
+from .nodes import Multiply
 from .nodes import RadialBasis
 
 # Binary Nodes, no params
@@ -56,7 +57,8 @@ from .nodes import SelectIndex
 from .nodes import MaxNotIndex
 from .nodes import MinNotIndex
 from .nodes import SquaredEuclidean
-from .nodes import Multiply
+from .nodes import Divide
+from .nodes import Product
 from .nodes import WeightDecay
 
 # Old losses ... deprecated, don't use.
