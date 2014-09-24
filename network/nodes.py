@@ -320,16 +320,23 @@ class Multiply(Unary):
 
     See also: Product, which multiplies two separate inputs.
     """
-    def __init__(self, name, weight_shape):
-        Unary.__init__(self, name=name, weight_shape=weight_shape)
+    def __init__(self, name, weight_shape, broadcast=None):
+        Unary.__init__(self, name=name,
+                       weight_shape=weight_shape,
+                       broadcast=broadcast)
         self.weight = core.Parameter(
-            shape=weight_shape, name=self.__own__('weight'))
+            shape=weight_shape,
+            name=self.__own__('weight'))
         self._params.append(self.weight)
+        self.broadcast = broadcast
 
     def transform(self):
         """In-place transformation"""
         Unary.transform(self)
-        self.output.variable = self.weight.variable * self.input.variable
+        weight = self.weight.variable
+        if not self.broadcast is None:
+            weight = T.addbroadcast(weight, *self.broadcast)
+        self.output.variable = self.input.variable * weight
 
 
 class Affine(Unary):

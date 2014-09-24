@@ -162,6 +162,18 @@ class NodeTests(unittest.TestCase):
             n.weight.value = w
             np.testing.assert_equal(fx(a)[0], w*a)
 
+        n = nodes.Multiply(name='gain', weight_shape=(1, 2), broadcast=[0])
+        n.input.connect(x1)
+        n.transform()
+
+        fx = nodes.compile(inputs=n.inputs.values(),
+                           outputs=n.outputs.values())
+
+        np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
+
+        n.weight.value = a[0].reshape(1, -1)
+        np.testing.assert_equal(fx(a)[0], a*a[0].reshape(1, -1))
+
     def test_Max(self):
         x1 = core.Input(name='x1', shape=(2, 2))
         a = np.array([[3, -1], [4, 7]])
