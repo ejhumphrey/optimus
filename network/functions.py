@@ -15,7 +15,7 @@ def linear(x):
 
 def relu(x):
     """Write my LaTeX form."""
-    return 0.5 * (x + T.abs_(x))
+    return x * (x > 0) 
 
 
 def tanh(x):
