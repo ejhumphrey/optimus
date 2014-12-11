@@ -62,7 +62,11 @@ class Node(core.JObject):
 
     def __own__(self, name):
         """TODO(ejhumphrey): write me."""
-        return "%s.%s" % (self.name, name)
+        return "{node}.{name}".format(node=self.name, name=name)
+
+    def __disown__(self, name):
+        """TODO(ejhumphrey): write me."""
+        return name.split(self.name)[-1].strip('.')
 
     # --- Subclassed methods ---
     def transform(self):
@@ -83,6 +87,26 @@ class Node(core.JObject):
     def outputs(self):
         """Return a dict of all active Outputs in the node."""
         return dict([(v.name, v) for v in self._outputs])
+
+    def share_params(self, node):
+        """Link the parameter variables of two nodes of the same class.
+
+        Note:
+          1. This is bi-directional, so a.share_params(b) == b.share_params(a).
+          2. This is *not* serialization proof...
+
+        Parameters
+        ----------
+        node : Node
+            Node with which to link parameters.
+        """
+        if self.type != node.type:
+            raise ValueError(
+                "Only instances of the same class should share parameters.")
+
+        for k, p in node.params.items():
+            k = self.__own__(node.__disown__(p.name))
+            self.params[k]._variable = p._variable
 
 
 class MultiInput(Node):
