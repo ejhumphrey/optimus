@@ -202,7 +202,8 @@ class Graph(JObject):
                     break
             if nothing_happened:
                 print "Your logic is poor, but we can help."
-                print "\t%s" % local_map
+                for k, v in local_map.iteritems():
+                    print "\t{ %s: %s }" % (k, v)
                 return
         self.ports = input_ports
 
@@ -312,7 +313,7 @@ class Driver(object):
     """
     TIME_FMT = "%04d-%02d-%02d_%02dh%02dm%02ds"
 
-    def __init__(self, graph, name,
+    def __init__(self, graph, name='trainer',
                  output_directory=None,
                  log_file='training_stats.json',
                  init_param_file=None):
@@ -321,18 +322,15 @@ class Driver(object):
         self.output_directory = output_directory
         self.name = name
 
-        self._file_base = "%s-%s" % (graph.name, name)
-
         if init_param_file:
             self.graph.load_param_values(init_param_file)
 
         if not output_directory is None:
-            # self.output_directory = os.path.join(output_directory, self.name)
             self.output_directory = output_directory
             if not os.path.exists(self.output_directory):
                 os.makedirs(self.output_directory)
             def_file = os.path.join(self.output_directory,
-                                    "%s.json" % self._file_base)
+                                    "%s.json" % self.name)
             save(self.graph, def_file)
 
         self._stats = dict()
@@ -401,7 +399,7 @@ class Driver(object):
                                        cpoint['loss'])
 
     def _save_params(self, n_iter, param_file_fmt):
-        args = tuple([self._file_base, n_iter] + list(time.localtime()[:6]))
+        args = tuple([self.name, n_iter] + list(time.localtime()[:6]))
         param_file = os.path.join(self.output_directory, param_file_fmt % args)
         self.graph.save_param_values(param_file)
 
