@@ -62,26 +62,6 @@ class Loss(core.JObject):
         return dict([(v.name, v) for v in [self.loss, self.cost]])
 
 
-class Accumulator(Loss):
-    """writeme"""
-    def __init__(self, name):
-        # Input Validation
-        Loss.__init__(self, name=name)
-        self.input_list = core.PortList(
-            name=self.__own__("input_list"))
-
-    @property
-    def inputs(self):
-        """Return a list of all active Outputs in the node."""
-        # Filter based on what is set / active?
-        return dict([(v.name, v) for v in [self.input_list]])
-
-    def transform(self):
-        """writeme"""
-        assert self.input_list.variable, "Port error: 'input_list' not set."
-        self.cost.variable = sum(self.input_list.variable)
-
-
 class NegativeLogLikelihood(Loss):
     """writeme"""
     def __init__(self, name, weighted=False):
@@ -106,6 +86,7 @@ class NegativeLogLikelihood(Loss):
 
     def transform(self):
         """writeme"""
+        assert self.is_ready()
         assert self.likelihood.variable, "Port error: 'likelihood' not set."
         likelihood = self.likelihood.variable
         assert self.target_idx.variable, "Port error: 'target_idx' not set."
