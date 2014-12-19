@@ -91,9 +91,10 @@ class Node(core.JObject):
     def share_params(self, node):
         """Link the parameter variables of two nodes of the same class.
 
-        Note:
-          1. This is bi-directional, so a.share_params(b) == b.share_params(a).
-          2. This is *not* serialization proof...
+        Notes:
+          1. This is nearly symmetrical; parameter names of the object being
+             cloned are preserved.
+          2. This is *not* serialization proof.
 
         Parameters
         ----------
@@ -107,6 +108,11 @@ class Node(core.JObject):
         for k, p in node.params.items():
             k = self.__own__(node.__disown__(p.name))
             self.params[k]._variable = p._variable
+
+    def clone(self, new_name):
+        new_node = self.__class__(new_name, **self.__args__)
+        new_node.share_params(self)
+        return new_node
 
 
 class MultiInput(Node):
@@ -156,6 +162,20 @@ class Stack(MultiInput):
         if self.axes:
             output = T.transpose(output, axes=self.axes)
         self.output.variable = output
+
+
+class Constant(Node):
+    """Single input / output nodes."""
+    def __init__(self, name, shape):
+        Node.__init__(self, name=name, shape=shape)
+        self.data = core.Parameter(shape=shape, name=self.__own__('data'))
+        self._params.extend([self.data])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = self.data.variable
 
 
 class Unary(Node):

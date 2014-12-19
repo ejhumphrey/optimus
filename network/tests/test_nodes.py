@@ -23,6 +23,15 @@ class NodeTests(unittest.TestCase):
     def test_Node(self):
         pass
 
+    def test_Constant(self):
+        n = nodes.Constant(name='test', shape=None)
+        n.data.value = 1.0
+
+        n.transform()
+        fx = nodes.compile(inputs=[], outputs=[n.output])
+
+        np.testing.assert_equal(fx()[0], 1.0)
+
     def test_Add(self):
         x1 = core.Input(name='x1', shape=(2, 2))
         x2 = core.Input(name='x2', shape=(2, 2))
