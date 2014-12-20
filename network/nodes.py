@@ -234,13 +234,35 @@ class Slice(Unary):
 
 
 class Log(Unary):
+    def __init__(self, name, epsilon=0.0):
+        Unary.__init__(self, name=name, epsilon=epsilon)
+        self.epsilon = epsilon
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        self.output.variable = T.log(self.input.variable + self.epsilon)
+
+
+class Sqrt(Unary):
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
     def transform(self):
         """In-place transformation"""
         Unary.transform(self)
-        self.output.variable = T.log(self.input.variable)
+        self.output.variable = T.sqrt(self.input.variable)
+
+
+class Power(Unary):
+    def __init__(self, name, exponent):
+        Unary.__init__(self, name=name, exponent=exponent)
+        self.exponent = float(exponent)
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        self.output.variable = T.pow(self.input.variable, self.exponent)
 
 
 class Sigmoid(Unary):
