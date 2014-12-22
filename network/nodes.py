@@ -62,7 +62,11 @@ class Node(core.JObject):
 
     def __own__(self, name):
         """TODO(ejhumphrey): write me."""
-        return "%s.%s" % (self.name, name)
+        return "{node}.{name}".format(node=self.name, name=name)
+
+    def __disown__(self, name):
+        """TODO(ejhumphrey): write me."""
+        return name.split(self.name)[-1].strip('.')
 
     # --- Subclassed methods ---
     def transform(self):
@@ -83,6 +87,32 @@ class Node(core.JObject):
     def outputs(self):
         """Return a dict of all active Outputs in the node."""
         return dict([(v.name, v) for v in self._outputs])
+
+    def share_params(self, node):
+        """Link the parameter variables of two nodes of the same class.
+
+        Notes:
+          1. This is nearly symmetrical; parameter names of the object being
+             cloned are preserved.
+          2. This is *not* serialization proof.
+
+        Parameters
+        ----------
+        node : Node
+            Node with which to link parameters.
+        """
+        if self.type != node.type:
+            raise ValueError(
+                "Only instances of the same class should share parameters.")
+
+        for k, p in node.params.items():
+            k = self.__own__(node.__disown__(p.name))
+            self.params[k]._variable = p._variable
+
+    def clone(self, new_name):
+        new_node = self.__class__(new_name, **self.__args__)
+        new_node.share_params(self)
+        return new_node
 
 
 class MultiInput(Node):
@@ -132,6 +162,20 @@ class Stack(MultiInput):
         if self.axes:
             output = T.transpose(output, axes=self.axes)
         self.output.variable = output
+
+
+class Constant(Node):
+    """Single input / output nodes."""
+    def __init__(self, name, shape):
+        Node.__init__(self, name=name, shape=shape)
+        self.data = core.Parameter(shape=shape, name=self.__own__('data'))
+        self._params.extend([self.data])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        assert self.is_ready(), "Not all ports are set."
+        self.output.variable = self.data.variable
 
 
 class Unary(Node):
@@ -190,13 +234,35 @@ class Slice(Unary):
 
 
 class Log(Unary):
+    def __init__(self, name, epsilon=0.0):
+        Unary.__init__(self, name=name, epsilon=epsilon)
+        self.epsilon = epsilon
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        self.output.variable = T.log(self.input.variable + self.epsilon)
+
+
+class Sqrt(Unary):
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
     def transform(self):
         """In-place transformation"""
         Unary.transform(self)
-        self.output.variable = T.log(self.input.variable)
+        self.output.variable = T.sqrt(self.input.variable)
+
+
+class Power(Unary):
+    def __init__(self, name, exponent):
+        Unary.__init__(self, name=name, exponent=exponent)
+        self.exponent = float(exponent)
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        self.output.variable = T.pow(self.input.variable, self.exponent)
 
 
 class Sigmoid(Unary):

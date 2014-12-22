@@ -23,6 +23,15 @@ class NodeTests(unittest.TestCase):
     def test_Node(self):
         pass
 
+    def test_Constant(self):
+        n = nodes.Constant(name='test', shape=None)
+        n.data.value = 1.0
+
+        n.transform()
+        fx = nodes.compile(inputs=[], outputs=[n.output])
+
+        np.testing.assert_equal(fx()[0], 1.0)
+
     def test_Add(self):
         x1 = core.Input(name='x1', shape=(2, 2))
         x2 = core.Input(name='x2', shape=(2, 2))
@@ -292,7 +301,10 @@ class NodeTests(unittest.TestCase):
             x2 = core.Input(name='x2', shape=b.shape)
             n = nodes.Product('product')
             n.input_a.connect(x1)
+            with self.assertRaises(AssertionError):
+                n.transform()
             n.input_b.connect(x2)
+            self.assertTrue(n.is_ready())
             n.transform()
 
             fx = nodes.compile(inputs=[x1, x2],
@@ -365,6 +377,42 @@ class NodeTests(unittest.TestCase):
 
         np.testing.assert_equal(fx(a, 0.0)[0], np.dot(a, w) + b)
         self.assertGreaterEqual(np.equal(fx(a, 0.9)[0], 0.0).sum(), 1)
+
+    def test_Affine_share_params(self):
+        x = core.Input(name='x1', shape=(None, 2))
+        a = np.array([[3, -1], [4, 7]])
+
+        w = np.array([[1, -1], [2, -2], [3, -3]]).T
+        b = np.ones(3)
+
+        n1 = nodes.Affine(
+            name='affine',
+            input_shape=(None, 2),
+            output_shape=(None, 3),
+            act_type='linear')
+
+        n2 = nodes.Affine(
+            name='affine_copy',
+            input_shape=(None, 2),
+            output_shape=(None, 3),
+            act_type='linear')
+
+        n2.share_params(n1)
+
+        n1.weights.value = w
+        n1.bias.value = b
+
+        np.testing.assert_equal(n1.weights.value, n2.weights.value)
+        np.testing.assert_equal(n1.bias.value, n2.bias.value)
+
+        n2.input.connect(x)
+        n2.transform()
+
+        fx = nodes.compile(inputs=[x], outputs=n2.outputs.values())
+        np.testing.assert_equal(fx(a)[0], np.dot(a, w) + b)
+
+        n1.weights.value *= 2
+        np.testing.assert_equal(fx(a)[0], np.dot(a, 2*w) + b)
 
     def test_Conv3D_linear(self):
         x1 = core.Input(name='x1', shape=(None, 1, 2, 3))

@@ -334,9 +334,10 @@ class Driver(object):
             save(self.graph, def_file)
 
         self._stats = dict()
+        self._last_params = None
 
     def fit(self, source, hyperparams, max_iter=10000, save_freq=250,
-            print_freq=50):
+            print_freq=50, nan_exceptions=0):
         """Fit the internal graph to the given data source.
 
         Parameters
@@ -352,6 +353,8 @@ class Driver(object):
             Number of iterations between checkpoints.
         print_freq : int
             Number of iterations between displaying progress.
+        nan_exceptions : int, default=0
+            Number of NaNs to catch before stopping.
         """
         assert self.graph.loss, "Loss not set!"
         self._stats.update(
@@ -366,6 +369,7 @@ class Driver(object):
 
         param_file_fmt = "%%s-%%0%dd-%s.npz" % (np.ceil(np.log10(max_iter)+1),
                                                 self.TIME_FMT)
+        self._last_params = self.graph.param_values
         try:
             for n_iter, data in enumerate(source):
                 data.update(**hyperparams)
@@ -380,7 +384,13 @@ class Driver(object):
                     break
                 if not np.isfinite(outputs[self.graph.loss.name]):
                     print "Caught a non-finite loss at iteration: %d " % n_iter
-                    break
+                    if nan_exceptions <= 0:
+                        print "Stopping."
+                        break
+                    print "Reseting parameter values and moving on..."
+                    self.graph.param_values = self._last_params
+                    nan_exceptions = nan_exceptions - 1
+                self._last_params = self.graph.param_values
 
         except KeyboardInterrupt:
             print "Stopping early after %d iterations" % n_iter

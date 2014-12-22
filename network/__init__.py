@@ -23,6 +23,9 @@ from .nodes import Add
 from .nodes import Concatenate
 from .nodes import Stack
 
+# No inputs, single param
+from .nodes import Constant
+
 # Unary Nodes, no params, dim-redux
 from .nodes import Dimshuffle
 from .nodes import Flatten
@@ -38,9 +41,11 @@ from .nodes import Sum
 from .nodes import Log
 from .nodes import Normalize
 from .nodes import NormalizeDim
+from .nodes import Power
 from .nodes import RectifiedLinear
 from .nodes import SoftRectifiedLinear
 from .nodes import Sigmoid
+from .nodes import Sqrt
 from .nodes import Softmax
 from .nodes import Tanh
 
