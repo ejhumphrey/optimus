@@ -390,6 +390,7 @@ class Driver(object):
                     print "Reseting parameter values and moving on..."
                     self.graph.param_values = self._last_params
                     nan_exceptions = nan_exceptions - 1
+                self._last_params = self.graph.param_values
 
         except KeyboardInterrupt:
             print "Stopping early after %d iterations" % n_iter
