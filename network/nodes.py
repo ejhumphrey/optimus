@@ -466,6 +466,66 @@ class Affine(Unary):
             z_out, [z_out.shape[0]] + output_shape)
 
 
+class CenteredAffine(Unary):
+    """Centered Affine Transform Layer
+
+    Here, a bias is subtracted *prior* to applying a dot-product projection.
+    """
+    def __init__(self, name, input_shape, output_shape, act_type):
+        Unary.__init__(
+            self,
+            name=name,
+            input_shape=input_shape,
+            output_shape=output_shape,
+            act_type=act_type)
+        self.act_type = act_type
+
+        # TODO(ejhumphrey): This is super important but kind of a hack. Think
+        #   on this and come up with something better.
+        self.input.shape = input_shape
+        self.output.shape = output_shape
+
+        n_in = int(np.prod(input_shape[1:]))
+        n_out = int(np.prod(output_shape[1:]))
+        weight_shape = [n_in, n_out]
+
+        self.weights = core.Parameter(
+            shape=weight_shape, name=self.__own__('weights'))
+        self.bias = core.Parameter(
+            shape=[n_in], name=self.__own__('bias'))
+        self._params.extend([self.weights, self.bias])
+        self.dropout = None
+
+    def enable_dropout(self):
+        self.dropout = core.Port(shape=None, name=self.__own__('dropout'))
+        self._inputs.append(self.dropout)
+
+    def disable_dropout(self):
+        if self.dropout:
+            self._inputs.remove(self.dropout)
+        self.dropout = None
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        weights = self.weights.variable
+        bias = self.bias.variable.dimshuffle('x', 0)
+
+        x_in = T.flatten(self.input.variable, outdim=2) - bias
+        z_out = self.activation(T.dot(x_in, weights))
+        if self.dropout:
+            print "Performing dropout in %s" % self.name
+            dropout = self.dropout.variable
+            selector = self._theano_rng.binomial(
+                size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
+            # Scale up by the ratio of the number of units that are 'off'.
+            z_out *= selector.dimshuffle('x', 0) / (1.0 - dropout)
+
+        output_shape = list(self.output.shape)[1:]
+        self.output.variable = T.reshape(
+            z_out, [z_out.shape[0]] + output_shape)
+
+
 class Conv3D(Unary):
     """TODO(ejhumphrey): write me."""
 

@@ -52,6 +52,7 @@ from .nodes import Tanh
 # Unary Nodes, with params
 # from .nodes import Accumulate
 from .nodes import Affine
+from .nodes import CenteredAffine
 from .nodes import Conv3D
 from .nodes import Multiply
 from .nodes import RadialBasis
