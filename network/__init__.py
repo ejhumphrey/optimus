@@ -1,11 +1,12 @@
 """Magic and hackery."""
 
 import json
+
 import theano
 import theano.tensor as T
 
 FLOATX = theano.config.floatX
-
+__OBJECT_TYPE__ = 'type'
 TENSOR_TYPES = {None: T.scalar,
                 1: T.vector,
                 2: T.matrix,
@@ -82,47 +83,59 @@ from .losses import ClassificationError
 from .framework import ConnectionManager
 from .framework import Graph
 from .framework import Driver
-from .framework import save
-from .framework import load
-from .framework import random_init
 
 
-def __str_convert(obj):
+def __str_convert__(obj):
     """Convert unicode to strings.
 
     Known issue: Uses dictionary comprehension, and is incompatible with 2.6.
     """
     if isinstance(obj, dict):
-        return {__str_convert(key): __str_convert(value)
+        return {__str_convert__(key): __str_convert__(value)
                 for key, value in obj.iteritems()}
     elif isinstance(obj, list):
-        return [__str_convert(element) for element in obj]
+        return [__str_convert__(item) for item in obj]
     elif isinstance(obj, unicode):
         return obj.encode('utf-8')
     else:
         return obj
 
 
-def __jsonSupport__():
-    """writeme."""
-    def encode(self, jsonObject):
-        """writeme."""
-        return jsonObject.__json__
+class JSONSupport():
+    """Context manager for temporary JSON support."""
+    def __enter__(self):
+        # Encoder returns the object's `__json__` property.
+        json.JSONEncoder.default = lambda self, jobj: jobj.__json__
 
-    def decode(obj):
-        """writeme."""
-        # TODO(ejhumphrey): Consider filtering on underscores OR reserved word.
-        # filt_obj = dict()
-        # for k in obj:
-        #     if k.startswith("_"):
-        #         continue
-        #     filt_obj[k] = obj[k]
-        obj = __str_convert(obj)
-        if 'type' in obj:
-            return eval(obj.pop('type')).__json_init__(**obj)
-        return obj
+        # Decoder looks for the class name, and calls it's class constructor.
+        def decode(obj):
+            if __OBJECT_TYPE__ in obj:
+                return eval(obj.pop(__OBJECT_TYPE__)).__json_init__(**obj)
+            return obj
 
-    json.JSONEncoder.default = encode
-    json._default_decoder = json.JSONDecoder(object_hook=decode)
+        json._default_decoder = json.JSONDecoder(object_hook=decode)
+        return
 
-__jsonSupport__()
+    def __exit__(self, type, value, traceback):
+        # Nothing to do here...
+        pass
+
+
+def save(graph, def_file, param_file=None):
+    """Save a graph to disk."""
+    if param_file:
+        graph.save_param_values(param_file)
+
+    with JSONSupport():
+        with open(def_file, "w") as fp:
+            json.dump(graph, fp, indent=2)
+
+
+def load(def_file, param_file=None):
+    """Load a graph and corresponding parameter values from disk."""
+    with JSONSupport():
+        graph = json.load(open(def_file))
+
+    if param_file:
+        graph.load_param_values(param_file)
+    return graph

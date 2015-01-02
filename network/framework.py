@@ -7,7 +7,7 @@ from theano import function
 import time
 import os
 
-from . import json
+import json
 from .core import JObject
 # from .core import Port
 # from optimus.util import concatenate_data
@@ -267,22 +267,6 @@ class Graph(JObject):
             Path on disk of parameter values to load.
         """
         self.param_values = np.load(filename)
-
-
-def save(graph, def_file, param_file=None):
-    """Save a graph to disk."""
-    if param_file:
-        graph.save_param_values(param_file)
-    with open(def_file, "w") as fp:
-        json.dump(graph, fp, indent=2)
-
-
-def load(def_file, param_file=None):
-    """Load a graph and corresponding parameter values from disk."""
-    graph = json.load(open(def_file))
-    if param_file:
-        graph.load_param_values(param_file)
-    return graph
 
 
 def data_stepper(chunk_size=250, **kwargs):
