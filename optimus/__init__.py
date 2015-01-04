@@ -51,7 +51,6 @@ from .nodes import Softmax
 from .nodes import Tanh
 
 # Unary Nodes, with params
-# from .nodes import Accumulate
 from .nodes import Affine
 from .nodes import CenteredAffine
 from .nodes import Conv3D
@@ -66,18 +65,12 @@ from .nodes import MinNotIndex
 from .nodes import SquaredEuclidean
 from .nodes import Divide
 from .nodes import Product
-from .nodes import WeightDecay
 
 # Old losses ... deprecated, don't use.
-from .losses import NegativeLogLikelihood
-from .losses import MultiNegativeLogLikelihood
-from .losses import ConditionalNegativeLogLikelihood
-from .losses import MeanSquaredError
-from .losses import SparseMeanSquaredError
-from .losses import CrossEntropy
-from .losses import SparseCrossEntropy
-from .losses import Margin
-from .losses import ClassificationError
+from .losses import NegativeLogLikelihoodLoss
+from .losses import MeanSquaredErrorLoss
+from .losses import CrossEntropyLoss
+from .losses import WeightDecayPenalty
 
 # Framework classes
 from .framework import ConnectionManager
