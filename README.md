@@ -14,8 +14,8 @@ What does optimus bring to Theano?  Here is a quick demonstrations:
 
 * Introduction notebook (soon): a brief introduction to building, saving, and re-loading a network.
 * Basic Neural Networks (soon): using built-in data from scikit-learn, train a simple neural network classifier.
-* [MNIST with a ConvNet](http://nbviewer.ipython.org/github/ejhumphrey/examples/mnist.ipynb): demonstration using optimus to build a ConvNet for the MNIST dataset, showing the basics of building a graph and training it with real data.
-
+* [MNIST with a ConvNet](http://nbviewer.ipython.org/github/ejhumphrey/optimus/blob/master/examples/mnist.ipynb): demonstration using optimus to build a ConvNet for the MNIST dataset, showing the basics of building a graph and training it with real data.
+https://github.com/
 
 Installation
 ------------
