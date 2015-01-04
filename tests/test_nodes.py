@@ -1,14 +1,14 @@
-"""
-"""
+"""Tests for Node objects."""
 
 import unittest
 
 import numpy as np
-import optimus.network.nodes as nodes
-import optimus.network.core as core
+import optimus.nodes as nodes
+import optimus.core as core
 
 
 def __relu__(x):
+    "Numpy Rectified Linear Unit."
     return 0.5*(np.abs(x) + x)
 
 
