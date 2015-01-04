@@ -39,14 +39,56 @@ def load_mnist(gzfile):
     return dsets
 
 
+def minibatch(data, labels, batch_size, max_iter=np.inf):
+    """Random mini-batches generator.
+
+    Parameters
+    ----------
+    data : array_like, len=N
+        Observation data.
+    labels : array_like, len=N
+        Labels corresponding the the given data.
+    batch_size : int
+        Number of datapoints to return at each iteration.
+    max_iter : int, default=inf
+        Number of iterations before raising a StopIteration.
+
+    Yields
+    ------
+    batch : dict
+        Random batch of datapoints, under the keys `data` and `labels`.
+    """
+    if len(data) != len(labels):
+        raise ValueError("data and labels must have the same number of items.")
+
+    num_points = len(labels)
+    if num_points <= batch_size:
+        raise ValueError("batch_size cannot exceed number of data points")
+
+    count = 0
+    order = np.random.permutation(num_points)
+    idx = 0
+    while count < max_iter:
+        x, y = [], []
+        while len(y) < batch_size:
+            x.append(data[order[idx]])
+            y.append(labels[order[idx]])
+            idx += 1
+            if idx >= num_points:
+                idx = 0
+                np.random.shuffle(order)
+        yield dict(data=np.asarray(x), labels=np.asarray(y))
+        count += 1
+
+
 def build_model():
     # 1.1 Create Inputs
     input_data = optimus.Input(
-        name='image',
+        name='data',
         shape=(None, 1, 28, 28))
 
     class_labels = optimus.Input(
-        name='label',
+        name='labels',
         shape=(None,),
         dtype='int32')
 
@@ -132,16 +174,14 @@ def build_model():
 
 
 def main(mnist_file):
-    # 3. Create Data
-    train, valid, test = load_mnist(mnist_file)
-    source = optimus.Queue(
-        train, batch_size=50, refresh_prob=0.0, cache_size=50000)
-
+    # Create the models and driver
     trainer, predictor = build_model()
-
     driver = optimus.Driver(graph=trainer, name='example_classifier')
 
-    hyperparams = dict(learning_rate=0.02, sparsity_param=0.0,
-                       decay_param=0.0)
+    # Load data and configure the minibatch generator.
+    train, valid, test = load_mnist(mnist_file)
+    stream = minibatch(train[0], train[1], 20)
+    hyperparams = dict(learning_rate=0.02)
 
-    driver.fit(source, hyperparams=hyperparams, max_iter=5000, print_freq=25)
+    # And we're off!
+    driver.fit(stream, hyperparams=hyperparams, max_iter=500, print_freq=20)
