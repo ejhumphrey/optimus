@@ -1,0 +1,102 @@
+{
+  "loss": null, 
+  "name": "mnist_classifier", 
+  "inputs": [
+    {
+      "dtype": "float64", 
+      "shape": [
+        null, 
+        1, 
+        28, 
+        28
+      ], 
+      "type": "Input", 
+      "name": "data"
+    }
+  ], 
+  "outputs": [
+    {
+      "type": "Output", 
+      "name": "likelihoods"
+    }
+  ], 
+  "connections": {
+    "softmax.output": [
+      "likelihoods"
+    ], 
+    "classifier.output": [
+      "softmax.input"
+    ], 
+    "affine.output": [
+      "classifier.input"
+    ], 
+    "conv.output": [
+      "affine.input"
+    ], 
+    "data": [
+      "conv.input"
+    ]
+  }, 
+  "updates": null, 
+  "nodes": [
+    {
+      "act_type": "relu", 
+      "name": "conv", 
+      "weight_shape": [
+        15, 
+        1, 
+        9, 
+        9
+      ], 
+      "type": "Conv3D", 
+      "downsample_shape": [
+        1, 
+        1
+      ], 
+      "input_shape": [
+        null, 
+        1, 
+        28, 
+        28
+      ], 
+      "pool_shape": [
+        2, 
+        2
+      ], 
+      "border_mode": "valid"
+    }, 
+    {
+      "act_type": "relu", 
+      "type": "Affine", 
+      "output_shape": [
+        null, 
+        512
+      ], 
+      "name": "affine", 
+      "input_shape": [
+        null, 
+        15, 
+        10, 
+        10
+      ]
+    }, 
+    {
+      "act_type": "linear", 
+      "type": "Affine", 
+      "output_shape": [
+        null, 
+        10
+      ], 
+      "name": "classifier", 
+      "input_shape": [
+        null, 
+        512
+      ]
+    }, 
+    {
+      "type": "Softmax", 
+      "name": "softmax"
+    }
+  ], 
+  "type": "Graph"
+}
