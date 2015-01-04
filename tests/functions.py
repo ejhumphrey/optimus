@@ -1,12 +1,11 @@
-"""
-"""
+"""Tests for additional symbolic Theano functions."""
 
 import unittest
 
 import numpy as np
 import theano
 import theano.tensor as T
-import optimus.network.functions as F
+import optimus.functions as F
 
 
 class FunctionTests(unittest.TestCase):

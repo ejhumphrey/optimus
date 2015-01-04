@@ -1,10 +1,11 @@
-"""
+"""Graph-level tests.
+
+TODO(ejhumphrey): Write more tests, guh!
 """
 
 import unittest
 
-import optimus.network as N
-from optimus.network.core import Port
+import optimus
 
 
 class NetworkTests(unittest.TestCase):
@@ -18,24 +19,16 @@ class NetworkTests(unittest.TestCase):
     def test_connection_manager(self):
         connection_map = {'a': ['b'],
                           'b': ['a', 'c']}
-        a = Port('a')
-        b = Port('b')
-        c = Port('c')
+        a = optimus.Port('a')
+        b = optimus.Port('b')
+        c = optimus.Port('c')
 
         edges = [(a, b), (b, a), (b, c)]
-        connection_manager = N.ConnectionManager(edges)
+        connection_manager = optimus.ConnectionManager(edges)
         self.assertEqual(
-            connection_manager.connection_map,
+            connection_manager.connections,
             connection_map,
             "Failed to parse edges properly.")
-
-        cm_string = N.json.dumps(connection_manager)
-        cm_reloaded = N.json.loads(cm_string)
-        self.assertEqual(
-            cm_reloaded.connection_map,
-            connection_map,
-            "Failed to de/serialize properly.")
-
 
 if __name__ == "__main__":
     unittest.main()
