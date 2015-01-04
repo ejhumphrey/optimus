@@ -84,6 +84,10 @@ from .framework import ConnectionManager
 from .framework import Graph
 from .framework import Driver
 
+# Misc Functionality
+from .util import array_stepper
+from .util import concatenate_data
+
 
 def __str_convert__(obj):
     """Convert unicode to strings.
