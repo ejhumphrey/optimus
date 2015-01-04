@@ -1,6 +1,21 @@
 import numpy as np
 
 
+def random_init(param, mean=0.0, std=0.025):
+    """Initialize a parameter from a normal distribution.
+
+    Parameters
+    ----------
+    param : optimus.core.Parameter
+        Object to initialize.
+    mean : scalar
+        Average of the distribution.
+    std : scalar
+        Standard deviation of the distribution.
+    """
+    param.value = np.random.normal(mean, std, size=param.shape)
+
+
 def array_stepper(value, length, stride=1, axis=0,
                   mode='full', fill_value=0.0):
     """Generator yielding slices of an input array along a given axis.

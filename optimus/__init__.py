@@ -80,6 +80,7 @@ from .framework import Driver
 # Misc Functionality
 from .util import array_stepper
 from .util import concatenate_data
+from .util import random_init
 
 
 def __str_convert__(obj):

@@ -3,23 +3,17 @@ import numpy as np
 from theano.tensor import grad
 from collections import OrderedDict
 from theano import function
-# from theano import shared
+
 import time
 import os
 
 import json
 from .core import JObject
-# from .core import Port
-# from optimus.util import concatenate_data
 
 
 def named_list(items):
     """TODO(ejhumphrey): write me."""
     return OrderedDict([(obj.name, obj) for obj in items])
-
-
-def random_init(param, mean=0.0, std=0.025):
-    param.value = np.random.normal(mean, std, size=param.shape)
 
 
 class ConnectionManager(object):
