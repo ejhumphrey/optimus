@@ -10,11 +10,11 @@ Unfortunately, documentation is rather sparse at the moment. Please refer to the
 
 Demonstration notebook
 ----------------------
-What does optimus bring to Theano?  Here are a pair of quick demonstrations:
+What does optimus bring to Theano?  Here is a quick demonstrations:
 
-* [Introduction notebook](http://nbviewer.ipython.org/github/ejhumphrey/fixme): a brief introduction to building, saving, and re-loading a network.
-* [Basic Neural Networks](http://nbviewer.ipython.org/github/ejhumphrey/fixme): using built-in data from scikit-learn, train a simple neural network classifier.
-* [MNIST with a ConvNet](http://nbviewer.ipython.org/github/ejhumphrey/fixme): an slight extension of the previous demonstration, using optimus to build a ConvNet.
+* Introduction notebook (soon): a brief introduction to building, saving, and re-loading a network.
+* Basic Neural Networks (soon): using built-in data from scikit-learn, train a simple neural network classifier.
+* [MNIST with a ConvNet](http://nbviewer.ipython.org/github/ejhumphrey/examples/mnist.ipynb): demonstration using optimus to build a ConvNet for the MNIST dataset, showing the basics of building a graph and training it with real data.
 
 
 Installation
@@ -31,7 +31,9 @@ python setup.py build
 python setup.py install
 ```
 
-At this point, the demos provided in `examples/` should run without a hitch.
+Depending on your system configuration, you may need administrator / sudo privileges to install.
+
+That said, if you've made it this far, the mnist demo script, provided at`examples/mnist.py` should run without a hitch.
 
 Alternatively, download or clone the repository and use `easy_install` to handle dependencies:
 
