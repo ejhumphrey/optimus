@@ -26,14 +26,14 @@ class NegativeLogLikelihoodLoss(Node):
         Node.__init__(self, name=name)
         self.likelihoods = core.Port(name=self.__own__("likelihoods"))
         self.index = core.Port(name=self.__own__("index"), shape=[])
-        self._inputs.extend([self.input, self.index])
+        self._inputs.extend([self.likelihoods, self.index])
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
 
     def transform(self):
         """writeme"""
         assert self.is_ready()
-        assert self.input.variable.ndim == 2
+        assert self.likelihoods.variable.ndim == 2
 
         col_index = self.index.variable
         row_index = T.arange(col_index.shape[0], dtype='int32')
