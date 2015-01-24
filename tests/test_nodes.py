@@ -30,7 +30,7 @@ class NodeTests(unittest.TestCase):
         n.transform()
         fx = nodes.compile(inputs=[], outputs=[n.output])
 
-        np.testing.assert_equal(fx()[0], 1.0)
+        np.testing.assert_equal(np.array(fx()[0]), 1.0)
 
     def test_Add(self):
         x1 = core.Input(name='x1', shape=(2, 2))
