@@ -520,7 +520,7 @@ class NodeTests(unittest.TestCase):
             name='radial',
             input_shape=x.shape,
             output_shape=(None, 3))
-        n.weights.value = w.reshape(1, 2, 3)
+        n.weights.value = w.reshape(2, 3)
         n.input.connect(x)
         n.transform()
 

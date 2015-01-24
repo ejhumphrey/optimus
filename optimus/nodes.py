@@ -674,7 +674,7 @@ class RadialBasis(Unary):
 
         n_in = int(np.prod(input_shape[1:]))
         n_out = int(np.prod(output_shape[1:]))
-        weight_shape = [1, n_in, n_out]
+        weight_shape = [n_in, n_out]
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self._params.append(self.weights)
@@ -682,11 +682,10 @@ class RadialBasis(Unary):
     def transform(self):
         """In-place transformation"""
         Unary.transform(self)
-        weights = self.weights.variable
+        weights = self.weights.variable.dimshuffle('x', 0, 1)
 
         x_in = T.flatten(self.input.variable, outdim=2).dimshuffle(0, 1, 'x')
-        z_out = T.pow(T.abs_(x_in - T.addbroadcast(weights, 0)),
-                      2.0).sum(axis=1)
+        z_out = T.pow(T.abs_(x_in - weights), 2.0).sum(axis=1)
 
         output_shape = list(self.output.shape)[1:]
         self.output.variable = T.reshape(
