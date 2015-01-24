@@ -511,5 +511,23 @@ class NodeTests(unittest.TestCase):
         np.testing.assert_equal(fx(a, 0.0)[0], z)
         self.assertGreaterEqual(np.equal(fx(a, 0.9)[0], 0.0).sum(), 1)
 
+    def test_RadialBasis(self):
+        x = core.Input(name='x', shape=(None, 2))
+        a = np.array([[3, -1], [4, 7]])
+        w = np.array([[1, -1], [2, -2], [3, -3]]).T
+
+        n = nodes.RadialBasis(
+            name='radial',
+            input_shape=x.shape,
+            output_shape=(None, 3))
+        n.weights.value = w.reshape(1, 2, 3)
+        n.input.connect(x)
+        n.transform()
+
+        fx = nodes.compile(inputs=[x], outputs=n.outputs.values())
+        z = np.power(a.reshape(2, 2, 1) - w.reshape(1, 2, 3),
+                     2.0).sum(axis=1)
+        np.testing.assert_equal(fx(a)[0], z)
+
 if __name__ == "__main__":
     unittest.main()

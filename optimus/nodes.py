@@ -655,7 +655,7 @@ class Conv3D(Unary):
 
 
 class RadialBasis(Unary):
-    """Radial Basis Layer, i.e. L2-Distance, with internal weights.
+    """Radial Basis Layer, i.e. Squared Euclidean distance with weights.
 
     See also: SquaredEuclidean, which computes the distance between two
         separate inputs.
@@ -667,9 +667,14 @@ class RadialBasis(Unary):
             input_shape=input_shape,
             output_shape=output_shape)
 
+        # TODO(ejhumphrey): This is super important but kind of a hack. Think
+        #   on this and come up with something better.
+        self.input.shape = input_shape
+        self.output.shape = output_shape
+
         n_in = int(np.prod(input_shape[1:]))
         n_out = int(np.prod(output_shape[1:]))
-        weight_shape = [n_in, n_out]
+        weight_shape = [1, n_in, n_out]
         self.weights = core.Parameter(
             shape=weight_shape, name=self.__own__('weights'))
         self._params.append(self.weights)
@@ -679,8 +684,9 @@ class RadialBasis(Unary):
         Unary.transform(self)
         weights = self.weights.variable
 
-        x_in = T.flatten(self.input.variable, outdim=2)
-        z_out = T.pow(T.abs_(x_in - weights), 2.0).sum(axis=1)
+        x_in = T.flatten(self.input.variable, outdim=2).dimshuffle(0, 1, 'x')
+        z_out = T.pow(T.abs_(x_in - T.addbroadcast(weights, 0)),
+                      2.0).sum(axis=1)
 
         output_shape = list(self.output.shape)[1:]
         self.output.variable = T.reshape(
