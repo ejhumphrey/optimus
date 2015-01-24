@@ -303,13 +303,13 @@ class Driver(object):
         if init_param_file:
             self.graph.load_param_values(init_param_file)
 
-        if not output_directory is None:
+        if output_directory is not None:
             self.output_directory = output_directory
             if not os.path.exists(self.output_directory):
                 os.makedirs(self.output_directory)
-            def_file = os.path.join(self.output_directory,
-                                    "%s.json" % self.name)
-            save(self.graph, def_file)
+            # def_file = os.path.join(self.output_directory,
+            #                         "%s.json" % self.name)
+            # save(self.graph, def_file)
 
         self._stats = dict()
         self._last_params = None
