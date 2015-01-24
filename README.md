@@ -10,7 +10,7 @@ Unfortunately, documentation is rather sparse at the moment. Please refer to the
 
 Demonstration notebook
 ----------------------
-What does optimus bring to Theano?  Here is a quick demonstrations:
+What does optimus bring to Theano?  Here is a quick demonstration:
 
 * Introduction notebook (soon): a brief introduction to building, saving, and re-loading a network.
 * Basic Neural Networks (soon): using built-in data from scikit-learn, train a simple neural network classifier.
