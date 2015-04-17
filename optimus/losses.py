@@ -47,14 +47,15 @@ class CrossEntropyLoss(Node):
     NOTE: Both inputs *must* be non-negative, and only `target` may contain
     zeros. Expect all hell to break loose if this is violated.
     """
-    def __init__(self, name):
+    def __init__(self, name, epsilon=10.0**-6):
         # Input Validation
-        Node.__init__(self, name=name)
+        Node.__init__(self, name=name, epsilon=epsilon)
         self.prediction = core.Port(name=self.__own__("prediction"))
         self.target = core.Port(name=self.__own__("target"))
         self._inputs.extend([self.prediction, self.target])
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
+        self.epsilon = epsilon
 
     def transform(self):
         """writeme"""
@@ -62,9 +63,10 @@ class CrossEntropyLoss(Node):
 
         prediction = self.prediction.variable
         target = self.target.variable
-
-        output = target * T.log(prediction)
-        output += (1.0 - target) * T.log(1.0 - prediction)
+        eps_p1 = (1.0 + self.epsilon)
+        output = target * T.log((prediction + self.epsilon) / eps_p1)
+        output += (1.0 - target) * T.log(
+            (1.0 - prediction + self.epsilon) / eps_p1)
         self.output.variable = -T.mean(output)
 
 
