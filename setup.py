@@ -1,4 +1,7 @@
+import imp
 from setuptools import setup
+
+version = imp.load_source('optimus.version', 'optimus/version.py')
 
 long_description = \
     """A python package for describing and serializing feed-forward (acyclic)
@@ -9,7 +12,7 @@ neural networks in a language-agnostic manner."""
 
 setup(
     name='optimus',
-    version='0.0.1',
+    version=version.version,
     description='Python module for building and serializing neural networks.',
     author='Eric J. Humphrey',
     author_email='ejhumphrey@nyu.edu',

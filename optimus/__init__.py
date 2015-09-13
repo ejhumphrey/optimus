@@ -82,6 +82,8 @@ from .util import array_stepper
 from .util import concatenate_data
 from .util import random_init
 
+from .version import version as __version__
+
 
 def __str_convert__(obj):
     """Convert unicode to strings.
