@@ -23,11 +23,11 @@ class JObject(object):
     @property
     def __json__(self):
         raise NotImplementedError(
-            "<%s>: Missing a JSON serialization property." % self.type)
+            "<{}>: Missing a JSON serialization property.".format(self.type))
 
     def __repr__(self):
         """Render the object as an unambiguous string."""
-        return '<%s>' % self.type
+        return '<{}>'.format(self.type)
 
     def keys(self):
         """TODO(ejhumphrey): write me."""
@@ -73,7 +73,7 @@ class Port(object):
 
     def __repr__(self):
         """Render the object as an unambiguous string."""
-        return '<%s: %s>' % (self.type, self.name)
+        return '<{}: {}>'.format(self.type, self.name)
 
     @property
     def type(self):
@@ -182,7 +182,7 @@ class Parameter(object):
 
     def __repr__(self):
         """Render the object as an unambiguous string."""
-        return '<%s: %s>' % (self.type, self.name)
+        return '<{}: {}>'.format(self.type, self.name)
 
     @property
     def type(self):

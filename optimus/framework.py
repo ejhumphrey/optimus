@@ -1,4 +1,4 @@
-
+from __future__ import print_function
 import numpy as np
 from theano.tensor import grad
 from collections import OrderedDict
@@ -27,9 +27,9 @@ class ConnectionManager(object):
         self._connection_map = dict()
         for source, sink in edges:
             if not hasattr(source, 'variable'):
-                raise ValueError("Invalid source: %s" % source)
+                raise ValueError("Invalid source: {}".format(source))
             if not hasattr(sink, 'variable'):
-                raise ValueError("Invalid sink: %s" % sink)
+                raise ValueError("Invalid sink: {}".format(sink))
             self.add_edge(source, sink)
 
     def add_edge(self, source, sink):
@@ -39,13 +39,13 @@ class ConnectionManager(object):
         sink: Port
             Data sink (to)
         """
-        if not source.name in self._connection_map:
+        if source.name not in self._connection_map:
             self._connection_map[source.name] = list()
         self._connection_map[source.name].append(sink.name)
         if sink is None:
             raise ValueError(
-                "Sink for source ('%s') does not exist! "
-                "Did you forget to create it?" % source.name)
+                "Sink for source ('{}') does not exist! "
+                "Did you forget to create it?".format(source.name))
 
     @property
     def connections(self):
@@ -129,7 +129,7 @@ class Graph(JObject):
             if k in self.params:
                 self.params[k].value = values[k]
             else:
-                print "Received erroneous parameter: %s" % k
+                print("Received erroneous parameter: {}".format(k))
 
     def __wire__(self):
         """Walk inputs to outputs via connection map, collecting
@@ -157,7 +157,7 @@ class Graph(JObject):
 
         for port in self.outputs.values():
             # TODO(ejhumphrey): Why is this check here?
-            if not port is None:
+            if port is not None:
                 port.reset()
                 input_ports[port.name] = port
 
@@ -175,8 +175,8 @@ class Graph(JObject):
                     for sink_name in sinks:
                         nothing_happened = False
                         if self.verbose:
-                            print "Connecting %s -> %s" % (source_name,
-                                                           sink_name)
+                            print("Connecting {} -> {}".format(source_name,
+                                                               sink_name))
                         source = input_ports.get(source_name, None)
                         if source is None:
                             raise ValueError(
@@ -187,7 +187,7 @@ class Graph(JObject):
             for node in nodes:
                 if node.is_ready():
                     if self.verbose:
-                        print ">>> Transforming %s" % node
+                        print(">>> Transforming {}".format(node))
                     node.transform()
                     self.params.update(node.params)
                     input_ports.update(node.params)
@@ -195,9 +195,9 @@ class Graph(JObject):
                     nothing_happened = False
                     break
             if nothing_happened:
-                print "Your logic is poor, but we can help."
+                print("Your logic is poor, but we can help.")
                 for k, v in local_map.iteritems():
-                    print "\t{ %s: %s }" % (k, v)
+                    print("\t{{{}: {}}}".format(k, v))
                 return
         self.ports = input_ports
 
@@ -208,8 +208,8 @@ class Graph(JObject):
                 self.outputs[port_name] = self.ports[port_name]
             else:
                 raise ValueError(
-                    "Expected '%s' as an output, but was not created "
-                    "by the graph." % port_name)
+                    "Expected '{}' as an output, but was not created "
+                    "by the graph.".format(port_name))
 
         # Define SGD update rules
         # TODO(ejhumphrey): Break this out into something more atomic?
@@ -217,8 +217,8 @@ class Graph(JObject):
             self.loss = self.ports.get(self._loss.name, None)
             if self.loss is None:
                 raise ValueError(
-                    "Requested loss `%s` is not among the "
-                    "computed ports: \n%s" % (self._loss, self.ports.keys()))
+                    "Requested loss `{}` is not among the computed ports: "
+                    "\n{}".format(self._loss, self.ports.keys()))
             for input_name, param_names in self._updates.iteritems():
                 eta = self.inputs.get(input_name)
                 for param_name in param_names:
@@ -354,24 +354,25 @@ class Driver(object):
                 outputs = self.graph(**data)
                 self.update_stats(n_iter, outputs[self.graph.loss.name])
                 if n_iter > 0 and (n_iter % save_freq) == 0:
-                    if not self.output_directory is None:
+                    if self.output_directory is not None:
                         self._save_params(n_iter, param_file_fmt)
                 if (n_iter % print_freq) == 0:
                     self.print_last_stats()
                 if n_iter >= max_iter:
                     break
                 if not np.isfinite(outputs[self.graph.loss.name]):
-                    print "Caught a non-finite loss at iteration: %d " % n_iter
+                    print("Caught a non-finite loss at iteration: {} "
+                          "".format(n_iter))
                     if nan_exceptions <= 0:
-                        print "Stopping."
+                        print("Stopping.")
                         break
-                    print "Reseting parameter values and moving on..."
+                    print("Reseting parameter values and moving on...")
                     self.graph.param_values = self._last_params
                     nan_exceptions = nan_exceptions - 1
                 self._last_params = self.graph.param_values
 
         except KeyboardInterrupt:
-            print "Stopping early after %d iterations" % n_iter
+            print("Stopping early after {} iterations".format(n_iter))
 
     def update_stats(self, n_iter, loss):
         cpoint = dict(timestamp=time.asctime(),
@@ -381,10 +382,10 @@ class Driver(object):
 
     def print_last_stats(self):
         cpoint = self._stats['checkpoints'][-1]
-        print "[%s] %d / %d: %0.4f" % (cpoint['timestamp'],
-                                       cpoint['n_iter'],
-                                       self._stats['max_iter'],
-                                       cpoint['loss'])
+        print("[%s] %d / %d: %0.4f".format(cpoint['timestamp'],
+                                           cpoint['n_iter'],
+                                           self._stats['max_iter'],
+                                           cpoint['loss']))
 
     def _save_params(self, n_iter, param_file_fmt):
         args = tuple([self.name, n_iter] + list(time.localtime()[:6]))
