@@ -1,5 +1,5 @@
 """TODO(ejhumphrey): write me."""
-
+from __future__ import print_function
 import numpy as np
 import theano
 import theano.tensor as T
@@ -454,7 +454,7 @@ class Affine(Unary):
         x_in = T.flatten(self.input.variable, outdim=2)
         z_out = self.activation(T.dot(x_in, weights) + bias)
         if self.dropout:
-            print "Performing dropout in %s" % self.name
+            print("Performing dropout in {}".format(self.name))
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
                 size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
@@ -514,7 +514,7 @@ class CenteredAffine(Unary):
         x_in = T.flatten(self.input.variable, outdim=2) - bias
         z_out = self.activation(T.dot(x_in, weights))
         if self.dropout:
-            print "Performing dropout in %s" % self.name
+            print("Performing dropout in {}".format(self.name))
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
                 size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
@@ -643,7 +643,7 @@ class Conv3D(Unary):
         output = self.activation(output + bias)
 
         if self.dropout:
-            print "Performing dropout in %s" % self.name
+            print("Performing dropout in {}".format(self.name))
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
                 size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
@@ -827,7 +827,7 @@ class NormalizeDim(Unary):
             scalar = T.sqrt(T.sum(T.abs_(input_var)**2.0, axis=self.axis))
 
         scalar += 1.0 * T.eq(scalar, 0)
-        new_shape = range(self.input.variable.ndim - 1)
+        new_shape = list(range(self.input.variable.ndim - 1))
         new_shape.insert(self.axis, 'x')
         scalar = scalar.dimshuffle(*new_shape)
         self.output.variable = self.input.variable / scalar
