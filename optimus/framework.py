@@ -1,14 +1,15 @@
 from __future__ import print_function
+
+from collections import OrderedDict
+import json
 import numpy as np
 from theano.tensor import grad
-from collections import OrderedDict
 from theano import function
-
 import time
 import os
 
-import json
-from .core import JObject
+
+from optimus.core import JObject
 
 
 def named_list(items):

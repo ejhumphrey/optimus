@@ -1,0 +1,36 @@
+sudo: false
+
+# addons:
+#   apt:
+#     packages:
+#     -
+
+cache:
+  directories:
+  - $HOME/env
+
+language: python
+
+notifications:
+  email: false
+
+python:
+    - "2.7"
+    - "3.4"
+    - "3.5"
+
+install:
+    - pip install pytest pytest-cov
+    - pip install coveralls
+    - pip install -e ./
+
+script:
+    - python --version
+    - py.test -vs --cov=optimus optimus
+
+after_success:
+    - coveralls
+    - pip uninstall -y optimus
+
+after_failure:
+    - pip uninstall -y optimus
