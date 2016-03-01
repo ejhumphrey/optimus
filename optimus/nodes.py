@@ -11,12 +11,6 @@ from . import FLOATX
 from . import functions
 
 
-def compile(inputs, outputs):
-    return theano.function(inputs=[x.variable for x in inputs],
-                           outputs=[z.variable for z in outputs],
-                           allow_input_downcast=True)
-
-
 # --- Node Implementations ---
 class Node(core.JObject):
     """
