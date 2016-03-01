@@ -400,7 +400,7 @@ class Multiply(Unary):
         """In-place transformation"""
         Unary.transform(self)
         weight = self.weight.variable
-        if not self.broadcast is None:
+        if self.broadcast is not None:
             weight = T.addbroadcast(weight, *self.broadcast)
         self.output.variable = self.input.variable * weight
 
@@ -454,6 +454,7 @@ class Affine(Unary):
         x_in = T.flatten(self.input.variable, outdim=2)
         z_out = self.activation(T.dot(x_in, weights) + bias)
         if self.dropout:
+            # TODO: Logging
             print("Performing dropout in {}".format(self.name))
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
