@@ -440,11 +440,6 @@ class Driver(object):
 
         param_file_fmt : str
             String formatter for producing keys.
-
-        Returns
-        -------
-        key : str
-            Key under which the parameters were saved.
         """
         # This is pretty gross right here.
         if self.output_directory:
@@ -452,10 +447,10 @@ class Driver(object):
                                       "{}.npz".format(key))
             self.graph.save_param_values(param_file)
 
-        if self.parameter_cache:
+        if self.parameter_cache is not None:
             self.parameter_cache.add(key, self.graph.param_values)
 
-        return key
+        return
 
     def __del__(self):
         if not self.log_file:

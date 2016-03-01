@@ -1,7 +1,9 @@
+import biggie
+import os
 import pytest
 
-import sources
 import optimus
+import sources
 
 
 def build_model():
@@ -58,20 +60,27 @@ def build_model():
         connections=predictor_edges.connections,
         outputs=[likelihoods])
 
-    driver = optimus.Driver(graph=trainer, name='take000',
-                            log_file='training_stats.csv')
-    return driver, predictor
+    return trainer, predictor
 
 
-def test_convergence():
+def test_convergence(workspace):
     stream1 = sources.parabola((-2, 2), 2.5)
     stream2 = sources.gaussian2d((0, 5), (0.25, 0.5))
 
     stream = sources.batch(streams=[stream1, stream2], batch_size=50,
                            probs=[0.5, 0.5])
 
-    driver, predictor = build_model()
+    trainer, predictor = build_model()
+    sfile = os.path.join(workspace, 'params.hdf5')
+    params = biggie.Stash(sfile)
+    driver = optimus.Driver(graph=trainer, name='take000',
+                            parameter_cache=params,
+                            log_file='training_stats.csv')
+
     hyperparams = dict(learning_rate=0.02)
-    stats = driver.fit(stream, hyperparams=hyperparams,
-                       print_freq=500, max_iter=2500)
+    stats = driver.fit(stream, hyperparams=hyperparams, save_freq=100,
+                       print_freq=100, max_iter=500)
+    num_checkpoints = 5
     assert stats.loss.iloc[0] > stats.loss.iloc[-1]
+    assert len(params) == num_checkpoints
+    assert stats.key.isin(params.keys()).sum() == num_checkpoints
