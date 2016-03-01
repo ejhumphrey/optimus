@@ -131,7 +131,7 @@ class Graph(JObject):
     def param_values(self, values):
         for k in values.keys():
             if k in self.params:
-                self.params[k].value = values[k]
+                self.params[k].value = values.get(k)
             else:
                 print("Received erroneous parameter: {}".format(k))
 

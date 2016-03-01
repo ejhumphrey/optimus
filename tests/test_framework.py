@@ -80,7 +80,15 @@ def test_convergence(workspace):
     hyperparams = dict(learning_rate=0.02)
     stats = driver.fit(stream, hyperparams=hyperparams, save_freq=100,
                        print_freq=100, max_iter=500)
+
+    # Verify that the output stats and checkpointed params make sense.
     num_checkpoints = 5
     assert stats.loss.iloc[0] > stats.loss.iloc[-1]
     assert len(params) == num_checkpoints
     assert stats.key.isin(params.keys()).sum() == num_checkpoints
+
+    # Verify that saved params can be set in the predictor and used.
+    for key in params.keys():
+        predictor.param_values = params.get(key)
+        data = next(stream)
+        assert predictor(x_input=data['x_input'])
