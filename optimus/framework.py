@@ -1,12 +1,15 @@
 from __future__ import print_function
 
 from collections import OrderedDict
+import datetime
 import json
 import numpy as np
+import os
+import pandas as pd
+import six
 from theano.tensor import grad
 from theano import function
 import time
-import os
 
 
 from optimus.core import JObject
@@ -63,8 +66,8 @@ class ConnectionManager(object):
 class Graph(JObject):
     """Graph Implementation
 
-    Property attributes are named dictionaries, while the corresponding private
-    variables are lists.
+    Property attributes are named dictionaries, while the corresponding
+    private variables are lists.
     """
     def __init__(self, name, inputs, nodes, connections, outputs,
                  loss=None, updates=None, constraints=None,
@@ -197,7 +200,7 @@ class Graph(JObject):
                     break
             if nothing_happened:
                 print("Your logic is poor, but we can help.")
-                for k, v in local_map.iteritems():
+                for k, v in six.iteritems(local_map):
                     print("\t{{{}: {}}}".format(k, v))
                 return
         self.ports = input_ports
@@ -220,7 +223,7 @@ class Graph(JObject):
                 raise ValueError(
                     "Requested loss `{}` is not among the computed ports: "
                     "\n{}".format(self._loss, self.ports.keys()))
-            for input_name, param_names in self._updates.iteritems():
+            for input_name, param_names in six.iteritems(self._updates):
                 eta = self.inputs.get(input_name)
                 for param_name in param_names:
                     param = self.params[param_name]
@@ -236,9 +239,9 @@ class Graph(JObject):
 
     def __call__(self, *args, **kwargs):
         """writeme"""
-        # Needs internal buffering strategy -- check if the value of each kwarg
-        # is an np.ndarray? if not, map it over all chunks. This should be a
-        # separate function though...
+        # Needs internal buffering strategy -- check if the value of each
+        # kwarg is an np.ndarray? if not, map it over all chunks. This should
+        # be a separate function though...
         # if self.chunk_size is None and len(kwargs.values()[0]) > ...?
         return OrderedDict([(k, v) for k, v in zip(self.outputs.keys(),
                                                    self._fx(*args, **kwargs))])
@@ -265,7 +268,10 @@ class Graph(JObject):
 
 
 def data_stepper(chunk_size=250, **kwargs):
-    """Generator to chunk unweildy inputs into smaller bites."""
+    """Generator to chunk unweildy inputs into smaller bites.
+
+    Isn't this superseded by optimus.util.array_stepper?
+    """
     constants = dict()
     arrays = dict()
     for key, value in kwargs:
@@ -281,10 +287,15 @@ def data_stepper(chunk_size=250, **kwargs):
     num_chunks = int(np.ceil(len(arrays.values()[0]) / float(chunk_size)))
     for n in range(num_chunks):
         i0, i1 = n*chunk_size, (n+1)*chunk_size
-        array_chunk = dict([(key, value[i0:i1])
-                            for key, value in arrays.iteritems()])
+        array_chunk = dict((key, value[i0:i1])
+                           for key, value in six.iteritems(arrays))
         array_chunk.update(constants)
         yield array_chunk
+
+
+class TrainInfo(object):
+    def __init__(self, iteration, loss, ):
+        pass
 
 
 class Driver(object):
@@ -294,11 +305,35 @@ class Driver(object):
 
     def __init__(self, graph, name='trainer',
                  output_directory=None,
-                 log_file='training_stats.json',
+                 parameter_cache=None,
+                 log_file='training_stats.csv',
                  init_param_file=None):
+        """Create an optimus training driver.
+
+        Parameters
+        ----------
+        graph : optimus.Graph
+            Instantiated graph to train.
+
+        name : str
+            Redundant?
+
+        output_directory : str
+            Path to cache outputs. Will be created if it doesn't exist.
+
+        parameter_cache : dict or biggie.Stash
+            Object to hold parameter checkpoints
+
+        log_file : str
+            Path to a file for writing progress.
+
+        init_param_file : str
+            Doesn't go here?
+        """
         self.graph = graph
         self.log_file = log_file
         self.output_directory = output_directory
+        self.parameter_cache = parameter_cache
         self.name = name
 
         if init_param_file:
@@ -312,7 +347,7 @@ class Driver(object):
             #                         "%s.json" % self.name)
             # save(self.graph, def_file)
 
-        self._stats = dict()
+        self._stats = []
         self._last_params = None
 
     def fit(self, source, hyperparams, max_iter=10000, save_freq=250,
@@ -323,44 +358,59 @@ class Driver(object):
         ----------
         source : generator
             Yields dictionaries of data matching the inputs of the graph.
+
         hyperparams : dict
             Static hyperparameters for the graph; merged with the dynamic
             source.
+
         max_iter : int
             Maximum number of interations to run.
+
         save_freq : int
             Number of iterations between checkpoints.
+
         print_freq : int
             Number of iterations between displaying progress.
+
         nan_exceptions : int, default=0
             Number of NaNs to catch before stopping.
+
+        Returns
+        -------
+        progress : pd.DataFrame
+            Training progress as a pandas DataFrame
         """
-        assert self.graph.loss, "Loss not set!"
-        self._stats.update(
-            checkpoints=[],
-            start_time=time.asctime(),
-            hyperparams=hyperparams,
-            max_iter=max_iter,
-            save_freq=save_freq)
+        if not self.graph.loss:
+            raise ValueError("Loss not set!")
 
         if save_freq is None or save_freq <= 0:
             save_freq = np.inf
 
-        param_file_fmt = "%%s-%%0%dd-%s.npz" % (np.ceil(np.log10(max_iter)+1),
-                                                self.TIME_FMT)
+        param_file_fmt = "%%s-%%0%dd-%s" % (np.ceil(np.log10(max_iter)+1),
+                                            self.TIME_FMT)
         self._last_params = self.graph.param_values
         try:
             for n_iter, data in enumerate(source):
                 data.update(**hyperparams)
+                # TODO: Technically, nothing is forcing the loss to be
+                # returned as an output...
                 outputs = self.graph(**data)
                 self.update_stats(n_iter, outputs[self.graph.loss.name])
+
+                # Checkpoint params if appropriate iteration.
                 if n_iter > 0 and (n_iter % save_freq) == 0:
-                    if self.output_directory is not None:
+                    if self.output_directory:
                         self._save_params(n_iter, param_file_fmt)
+
+                # Log progress
                 if (n_iter % print_freq) == 0:
                     self.print_last_stats()
+
+                # Break if done
                 if n_iter >= max_iter:
                     break
+
+                # NaN Handling
                 if not np.isfinite(outputs[self.graph.loss.name]):
                     print("Caught a non-finite loss at iteration: {} "
                           "".format(n_iter))
@@ -370,28 +420,39 @@ class Driver(object):
                     print("Reseting parameter values and moving on...")
                     self.graph.param_values = self._last_params
                     nan_exceptions = nan_exceptions - 1
+
                 self._last_params = self.graph.param_values
 
         except KeyboardInterrupt:
             print("Stopping early after {} iterations".format(n_iter))
 
-    def update_stats(self, n_iter, loss):
-        cpoint = dict(timestamp=time.asctime(),
-                      n_iter=n_iter,
-                      loss=float(loss))
-        self._stats['checkpoints'].append(cpoint)
+        return pd.DataFrame(self._stats)
+
+    def update_stats(self, iteration, loss):
+        """
+        """
+        self._stats.append(dict(timestamp=datetime.datetime.now(),
+                                iteration=iteration,
+                                loss=float(loss)))
 
     def print_last_stats(self):
+        """
+        """
         cpoint = self._stats['checkpoints'][-1]
-        print("[%s] %d / %d: %0.4f".format(cpoint['timestamp'],
-                                           cpoint['n_iter'],
-                                           self._stats['max_iter'],
-                                           cpoint['loss']))
+        print("[{}] {} / {}: {}".format(cpoint['timestamp'],
+                                        cpoint['n_iter'],
+                                        self._stats['max_iter'],
+                                        cpoint['loss']))
 
     def _save_params(self, n_iter, param_file_fmt):
         args = tuple([self.name, n_iter] + list(time.localtime()[:6]))
-        param_file = os.path.join(self.output_directory, param_file_fmt % args)
-        self.graph.save_param_values(param_file)
+        key = param_file_fmt % args
+        if self.output_directory:
+            param_file = os.path.join(self.output_directory,
+                                      "{}.npz".format(key))
+            self.graph.save_param_values(param_file)
+        if self.parameter_cache:
+            self.parameter_cache.add(key, self.graph.param_values)
 
     def __del__(self):
         if not self.log_file or not self.output_directory:
