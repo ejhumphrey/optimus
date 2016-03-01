@@ -909,9 +909,6 @@ class SquaredEuclidean(Binary):
 
     See also: RadialBasis, which maintains internal parameters.
     """
-    def __init__(self, name):
-        Binary.__init__(self, name=name)
-
     def transform(self):
         """Transform inputs to outputs."""
         assert self.is_ready()
@@ -931,9 +928,6 @@ class Product(Binary):
 
     See also: Multiply, which maintains internal parameters.
     """
-    def __init__(self, name):
-        Binary.__init__(self, name=name)
-
     def transform(self):
         """Transform inputs to outputs."""
         assert self.is_ready()
@@ -959,23 +953,23 @@ class Divide(Node):
 
 class L1Magnitude(Unary):
     def __init__(self, name, axis=None):
-        Unary.__init__(self, name=name, axis=None)
+        super(L1Magnitude, self).__init__(name=name, axis=None)
         self.axis = axis
 
     def transform(self):
         """writeme"""
-        Unary.transform(self)
+        super(L1Magnitude, self).transform()
         self.output.variable = T.sum(T.abs_(self.input.variable),
                                      axis=self.axis)
 
 
 class L2Magnitude(Unary):
     def __init__(self, name, axis=None):
-        Unary.__init__(self, name=name, axis=None)
+        super(L2Magnitude, self).__init__(name=name, axis=None)
         self.axis = axis
 
     def transform(self):
         """writeme"""
-        Unary.transform(self)
+        super(L2Magnitude, self).transform()
         self.output.variable = T.sqrt(T.sum(T.pow(self.input.variable, 2.0),
                                             axis=self.axis))
