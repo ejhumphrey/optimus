@@ -1,4 +1,5 @@
 import biggie
+import numpy as np
 import os
 import pytest
 
@@ -71,24 +72,30 @@ def test_convergence(workspace):
                            probs=[0.5, 0.5])
 
     trainer, predictor = build_model()
-    sfile = os.path.join(workspace, 'params.hdf5')
-    params = biggie.Stash(sfile)
+    params = biggie.Stash(os.path.join(workspace, 'params.hdf5'))
     driver = optimus.Driver(graph=trainer, name='take000',
                             parameter_cache=params,
                             log_file='training_stats.csv')
 
     hyperparams = dict(learning_rate=0.02)
-    stats = driver.fit(stream, hyperparams=hyperparams, save_freq=100,
-                       print_freq=100, max_iter=500)
+    stats = driver.fit(stream, hyperparams=hyperparams, save_freq=500,
+                       print_freq=500, max_iter=5000)
 
     # Verify that the output stats and checkpointed params make sense.
-    num_checkpoints = 5
+    num_checkpoints = 10
     assert stats.loss.iloc[0] > stats.loss.iloc[-1]
     assert len(params) == num_checkpoints
     assert stats.key.isin(params.keys()).sum() == num_checkpoints
 
     # Verify that saved params can be set in the predictor and used.
-    for key in params.keys():
+    for key in sorted(params.keys()):
         predictor.param_values = params.get(key)
         data = next(stream)
-        assert predictor(x_input=data['x_input'])
+        outputs = predictor(x_input=data['x_input'])
+        assert outputs
+        y_pred = outputs['likelihoods'].argmax(axis=1)
+        acc = np.mean(y_pred == data['y_target'])
+        print("Key: {}\t Accuracy: {}".format(key, acc))
+
+    # And confirm that the model's accuracy should be hovering around perfect
+    assert acc > 0.9
