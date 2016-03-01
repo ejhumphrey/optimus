@@ -1,4 +1,26 @@
 import numpy as np
+import theano
+
+
+def compile(inputs, outputs):
+    """Thin wrapper around theano's function compilation.
+
+    Parameters
+    ----------
+    inputs : list of optimus.Inputs
+        Optimus inputs.
+
+    outputs : list of optimus.Outputs
+        Connected and transformed outputs.
+
+    Returns
+    -------
+    func : callable
+        Function defined by the graph of inputs / outputs.
+    """
+    return theano.function(inputs=[x.variable for x in inputs],
+                           outputs=[z.variable for z in outputs],
+                           allow_input_downcast=True)
 
 
 def random_init(param, mean=0.0, std=0.025):
