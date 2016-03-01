@@ -6,11 +6,11 @@ import optimus.util as util
 import optimus.losses as losses
 
 
-def test_NegativeLogLikelihoodLoss():
+def test_NegativeLogLikelihood():
     lhoods = core.Input(name='likelihoods', shape=(None, 2))
     y_true = core.Input(name='y_true', shape=(None,), dtype='int32')
 
-    nll = losses.NegativeLogLikelihoodLoss(name='nll')
+    nll = losses.NegativeLogLikelihood(name='nll')
 
     nll.likelihoods.connect(lhoods)
     with pytest.raises(AssertionError):
@@ -30,3 +30,29 @@ def test_NegativeLogLikelihoodLoss():
     assert fx(likelihoods=x_obs[:1], y_true=y_obs[:1])[0] > 6.0
     # Right answer
     assert fx(likelihoods=x_obs[1:], y_true=y_obs[1:])[0] == 0
+
+
+def test_CrossEntropy():
+    pred = core.Input(name='prediction', shape=(None, 2))
+    target = core.Input(name='target', shape=(None, 2))
+
+    xentropy = losses.CrossEntropy(name='cross_entropy')
+
+    xentropy.prediction.connect(pred)
+    with pytest.raises(AssertionError):
+        xentropy.transform()
+
+    xentropy.target.connect(target)
+    assert xentropy.output.shape is None
+    xentropy.transform()
+
+    # TODO: Fixshape
+    # assert xentropy.output.shape == ()
+    fx = util.compile(inputs=[pred, target], outputs=[xentropy.output])
+
+    x_obs = np.array([[0.001, 1 - 0.001], [0.001, 1 - 0.001]])
+    y_obs = np.array([[1, 0], [0, 1]])
+    # Pretty wrong answer
+    assert fx(prediction=x_obs[:1], target=y_obs[:1])[0] > 6
+    # Right answer
+    assert fx(prediction=x_obs[1:], target=y_obs[1:])[0] < 0.01

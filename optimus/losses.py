@@ -9,7 +9,7 @@ from . import core
 from .nodes import Node
 
 
-class NegativeLogLikelihoodLoss(Node):
+class NegativeLogLikelihood(Node):
     """Indexed negative log-likelihood loss, i.e. for 1-of-k classifiers.
 
     In numpy syntax, computes the following:
@@ -41,7 +41,7 @@ class NegativeLogLikelihoodLoss(Node):
             self.likelihoods.variable[row_index, col_index]))
 
 
-class CrossEntropyLoss(Node):
+class CrossEntropy(Node):
     """Pointwise cross-entropy between a `prediction` and `target`.
 
     NOTE: Both inputs *must* be non-negative, and only `target` may contain
@@ -70,7 +70,7 @@ class CrossEntropyLoss(Node):
         self.output.variable = -T.mean(output)
 
 
-class MeanSquaredErrorLoss(Node):
+class MeanSquaredError(Node):
     """Compute the mean squared error between a `prediction` and a `target`.
 
     See also: optimus.nodes.SquaredEuclidean

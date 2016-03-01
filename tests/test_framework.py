@@ -20,7 +20,7 @@ def build_model():
         name='classifier', input_shape=layer0.output.shape,
         output_shape=(None, 2), act_type='softmax')
 
-    nll = optimus.NegativeLogLikelihoodLoss(name='nll')
+    nll = optimus.NegativeLogLikelihood(name='nll')
     likelihoods = optimus.Output(name='likelihoods')
     loss = optimus.Output(name='loss')
 

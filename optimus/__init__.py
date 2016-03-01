@@ -66,10 +66,10 @@ from .nodes import SquaredEuclidean
 from .nodes import Divide
 from .nodes import Product
 
-# Old losses ... deprecated, don't use.
-from .losses import NegativeLogLikelihoodLoss
-from .losses import MeanSquaredErrorLoss
-from .losses import CrossEntropyLoss
+# Scalar losses
+from .losses import NegativeLogLikelihood
+from .losses import MeanSquaredError
+from .losses import CrossEntropy
 from .losses import WeightDecayPenalty
 
 # Framework classes
