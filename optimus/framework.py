@@ -293,21 +293,14 @@ def data_stepper(chunk_size=250, **kwargs):
         yield array_chunk
 
 
-class TrainInfo(object):
-    def __init__(self, iteration, loss, ):
-        pass
-
-
 class Driver(object):
     """
     """
-    TIME_FMT = "%04d-%02d-%02d_%02dh%02dm%02ds"
+    # Replace with a datetime strfmt
+    TIME_FMT = "%04d%02d%02d_%02dh%02dm%02ds"
 
-    def __init__(self, graph, name='trainer',
-                 output_directory=None,
-                 parameter_cache=None,
-                 log_file='training_stats.csv',
-                 init_param_file=None):
+    def __init__(self, graph, name, output_directory=None,
+                 parameter_cache=None, log_file=None):
         """Create an optimus training driver.
 
         Parameters
@@ -316,38 +309,32 @@ class Driver(object):
             Instantiated graph to train.
 
         name : str
-            Redundant?
+            Unique name for this driver.
 
-        output_directory : str
+        output_directory : str, default=None
             Path to cache outputs. Will be created if it doesn't exist.
 
-        parameter_cache : dict or biggie.Stash
+        parameter_cache : dict or biggie.Stash, default=None
             Object to hold parameter checkpoints
 
-        log_file : str
+        log_file : str, default=None
             Path to a file for writing progress.
-
-        init_param_file : str
-            Doesn't go here?
         """
         self.graph = graph
-        self.log_file = log_file
-        self.output_directory = output_directory
-        self.parameter_cache = parameter_cache
         self.name = name
+        self.log_file = log_file
+        self.parameter_cache = parameter_cache
 
-        if init_param_file:
-            self.graph.load_param_values(init_param_file)
-
-        if output_directory is not None:
-            self.output_directory = output_directory
-            if not os.path.exists(self.output_directory):
-                os.makedirs(self.output_directory)
+        self.output_directory = output_directory
+        if output_directory and not os.path.exists(output_directory):
+            os.makedirs(self.output_directory)
+            # TODO: y/n?
             # def_file = os.path.join(self.output_directory,
             #                         "%s.json" % self.name)
             # save(self.graph, def_file)
 
-        self._stats = []
+        self.stats = pd.DataFrame(columns=['key', 'timestamp',
+                                           'iteration', 'loss'])
         self._last_params = None
 
     def fit(self, source, hyperparams, max_iter=10000, save_freq=250,
@@ -395,23 +382,28 @@ class Driver(object):
                 # TODO: Technically, nothing is forcing the loss to be
                 # returned as an output...
                 outputs = self.graph(**data)
-                self.update_stats(n_iter, outputs[self.graph.loss.name])
+                loss = outputs.get(self.graph.loss.name, np.nan)
+                key = self.iter_to_key(n_iter, param_file_fmt)
+
+                # Update stats
+                row = dict(key=key, timestamp=datetime.datetime.now(),
+                           iteration=n_iter, loss=float(loss))
+                self.stats.loc[len(self.stats)] = row
 
                 # Checkpoint params if appropriate iteration.
                 if n_iter > 0 and (n_iter % save_freq) == 0:
-                    if self.output_directory:
-                        self._save_params(n_iter, param_file_fmt)
+                    self._save_params(key)
 
                 # Log progress
                 if (n_iter % print_freq) == 0:
-                    self.print_last_stats()
+                    self.print_last_stats(row, max_iter)
 
                 # Break if done
                 if n_iter >= max_iter:
                     break
 
                 # NaN Handling
-                if not np.isfinite(outputs[self.graph.loss.name]):
+                if not np.isfinite(loss):
                     print("Caught a non-finite loss at iteration: {} "
                           "".format(n_iter))
                     if nan_exceptions <= 0:
@@ -426,37 +418,48 @@ class Driver(object):
         except KeyboardInterrupt:
             print("Stopping early after {} iterations".format(n_iter))
 
-        return pd.DataFrame(self._stats)
+        return self.stats
 
-    def update_stats(self, iteration, loss):
+    def print_last_stats(self, row, max_iter):
         """
         """
-        self._stats.append(dict(timestamp=datetime.datetime.now(),
-                                iteration=iteration,
-                                loss=float(loss)))
+        print("[{timestamp}] {iteration} / {max_iter}: {loss}"
+              "".format(max_iter=max_iter, **row))
 
-    def print_last_stats(self):
-        """
-        """
-        cpoint = self._stats['checkpoints'][-1]
-        print("[{}] {} / {}: {}".format(cpoint['timestamp'],
-                                        cpoint['n_iter'],
-                                        self._stats['max_iter'],
-                                        cpoint['loss']))
-
-    def _save_params(self, n_iter, param_file_fmt):
+    def iter_to_key(self, n_iter, param_file_fmt):
         args = tuple([self.name, n_iter] + list(time.localtime()[:6]))
-        key = param_file_fmt % args
+        return param_file_fmt % args
+
+    def _save_params(self, key):
+        """Checkpoint the graph's parameters.
+
+        Parameters
+        ----------
+        n_iter : int
+            Current iteration.
+
+        param_file_fmt : str
+            String formatter for producing keys.
+
+        Returns
+        -------
+        key : str
+            Key under which the parameters were saved.
+        """
+        # This is pretty gross right here.
         if self.output_directory:
             param_file = os.path.join(self.output_directory,
                                       "{}.npz".format(key))
             self.graph.save_param_values(param_file)
+
         if self.parameter_cache:
             self.parameter_cache.add(key, self.graph.param_values)
 
+        return key
+
     def __del__(self):
-        if not self.log_file or not self.output_directory:
+        if not self.log_file:
             return
-        log_file = os.path.join(self.output_directory, self.log_file)
-        with open(log_file, 'w') as fp:
-            json.dump(self._stats, fp, indent=2)
+        outdir = self.output_directory if self.output_directory else './'
+        log_file = os.path.join(outdir, self.log_file)
+        self.stats.to_csv(log_file)

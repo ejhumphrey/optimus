@@ -58,7 +58,8 @@ def build_model():
         connections=predictor_edges.connections,
         outputs=[likelihoods])
 
-    driver = optimus.Driver(graph=trainer, name='test')
+    driver = optimus.Driver(graph=trainer, name='take000',
+                            log_file='training_stats.csv')
     return driver, predictor
 
 
@@ -71,5 +72,6 @@ def test_convergence():
 
     driver, predictor = build_model()
     hyperparams = dict(learning_rate=0.02)
-    driver.fit(stream, hyperparams=hyperparams,
-               print_freq=500, max_iter=5000)
+    stats = driver.fit(stream, hyperparams=hyperparams,
+                       print_freq=500, max_iter=2500)
+    assert stats.loss.iloc[0] > stats.loss.iloc[-1]
