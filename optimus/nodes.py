@@ -1,7 +1,6 @@
 """TODO(ejhumphrey): write me."""
 from __future__ import print_function
 import numpy as np
-import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 from theano.tensor.signal import downsample
@@ -9,6 +8,10 @@ from theano.tensor.signal import downsample
 from . import core
 from . import FLOATX
 from . import functions
+
+
+class UnconnectedNodeError(BaseException):
+    pass
 
 
 # --- Node Implementations ---
@@ -38,12 +41,24 @@ class Node(core.JObject):
         set_outputs = all([p.variable for p in self.outputs.values()])
         return set_inputs and not set_outputs
 
+    def validate_ports(self):
+        if not self.is_ready():
+            status = self.port_status
+            status['name'] = self.name
+            raise UnconnectedNodeError(status)
+
     def reset(self):
         """TODO(ejhumphrey): write me."""
         for p in self.inputs.values():
             p.reset()
         for p in self.outputs.values():
             p.reset()
+
+    @property
+    def port_status(self):
+        return dict(
+            inputs={k: bool(p.variable) for k, p in self.inputs.items()},
+            outputs={k: bool(p.variable) for k, p in self.outputs.items()})
 
     @property
     def __json__(self):
@@ -125,7 +140,7 @@ class Add(MultiInput):
     """Summation node."""
     def transform(self):
         """writeme"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         self.output.variable = sum([x.variable for x in self._inputs])
         self.output.shape = self._inputs[0].shape
 
@@ -138,7 +153,7 @@ class Concatenate(MultiInput):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         self.output.variable = T.concatenate(
             [x.variable for x in self._inputs], axis=self.axis)
 
@@ -151,7 +166,7 @@ class Stack(MultiInput):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         output = T.stack(*list([x.variable for x in self._inputs]))
         if self.axes:
             output = T.transpose(output, axes=self.axes)
@@ -168,7 +183,7 @@ class Constant(Node):
         self._outputs.append(self.output)
 
     def transform(self):
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         self.output.variable = self.data.variable
 
 
@@ -182,7 +197,7 @@ class Unary(Node):
         self._outputs.append(self.output)
 
     def transform(self):
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
 
 
 class Dimshuffle(Unary):
@@ -767,7 +782,7 @@ class CrossProduct(Node):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
 
         in_a = self.input_a.variable.dimshuffle(0, 1, 'x')
         in_b = self.input_b.variable.dimshuffle(0, 'x', 1)
@@ -841,7 +856,7 @@ class SelectIndex(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         assert self.input.variable.ndim == 2
         col_index = self.index.variable
         row_index = T.arange(col_index.shape[0], dtype='int32')
@@ -861,7 +876,7 @@ class MaxNotIndex(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         index = self.index.variable
         input_var = self.input.variable
         assert input_var.ndim == 2
@@ -881,7 +896,7 @@ class MinNotIndex(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         index = self.index.variable
         input_var = self.input.variable
         assert input_var.ndim == 2
@@ -911,7 +926,7 @@ class SquaredEuclidean(Binary):
     """
     def transform(self):
         """Transform inputs to outputs."""
-        assert self.is_ready()
+        self.validate_ports()
         if self.input_a.variable.ndim >= 2:
             xA = T.flatten(self.input_a.variable, outdim=2)
             xB = T.flatten(self.input_b.variable, outdim=2)
@@ -930,7 +945,7 @@ class Product(Binary):
     """
     def transform(self):
         """Transform inputs to outputs."""
-        assert self.is_ready()
+        self.validate_ports()
         self.output.variable = self.input_a.variable * self.input_b.variable
 
 
@@ -946,7 +961,7 @@ class Divide(Node):
 
     def transform(self):
         """Transform inputs to outputs."""
-        assert self.is_ready()
+        self.validate_ports()
         denom = (self.denominator.variable == 0) + self.denominator.variable
         self.output.variable = self.numerator.variable / denom
 

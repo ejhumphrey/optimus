@@ -40,7 +40,7 @@ class NodeTests(unittest.TestCase):
         n = nodes.Add(name='accumulate', num_inputs=2)
         n.input_0.connect(x1)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(nodes.UnconnectedNodeError):
             n.transform()
 
         n.input_1.connect(x2)
@@ -49,7 +49,7 @@ class NodeTests(unittest.TestCase):
         self.assertEqual(n.output.shape, (2, 2))
 
         fx = util.compile(inputs=[x1, x2],
-                           outputs=[n.output])
+                          outputs=[n.output])
         a = np.array([[3, -1], [3, 7]])
         b = np.array([[1, 2], [3, 4]])
 
@@ -80,13 +80,13 @@ class NodeTests(unittest.TestCase):
         for axis in range(2):
             n = nodes.Concatenate(name='concatenate', num_inputs=2, axis=axis)
             n.input_0.connect(x1)
-            with self.assertRaises(AssertionError):
+            with self.assertRaises(nodes.UnconnectedNodeError):
                 n.transform()
             n.input_1.connect(x2)
             n.transform()
 
             fx = util.compile(inputs=[x1, x2],
-                               outputs=[n.output])
+                              outputs=[n.output])
 
             z = fx(a, b)[0]
             np.testing.assert_equal(z, np.concatenate([a, b], axis=axis))
@@ -104,7 +104,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=[x1, x2],
-                               outputs=[n.output])
+                              outputs=[n.output])
 
             z = fx(a, b)[0]
             expected = np.array([a, b])
@@ -123,7 +123,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0].shape, shp)
 
@@ -138,7 +138,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], ans)
 
@@ -149,7 +149,7 @@ class NodeTests(unittest.TestCase):
         log.transform()
 
         fx = util.compile(inputs=log.inputs.values(),
-                           outputs=log.outputs.values())
+                          outputs=log.outputs.values())
 
         a = np.array([[3, 1], [4, 7]], dtype=np.float32)
         z = fx(a)[0]
@@ -165,7 +165,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
 
@@ -177,7 +177,7 @@ class NodeTests(unittest.TestCase):
         n.transform()
 
         fx = util.compile(inputs=n.inputs.values(),
-                           outputs=n.outputs.values())
+                          outputs=n.outputs.values())
 
         np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
 
@@ -194,7 +194,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -208,7 +208,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -222,7 +222,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -236,7 +236,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -252,7 +252,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
             np.testing.assert_almost_equal(fx(a)[0], ans)
 
     def test_SelectIndex(self):
@@ -267,7 +267,7 @@ class NodeTests(unittest.TestCase):
         n.transform()
 
         fx = util.compile(inputs=[x1, idx],
-                           outputs=n.outputs.values())
+                          outputs=n.outputs.values())
 
         np.testing.assert_equal(fx(a, i)[0], np.array([-1, 4]))
 
@@ -288,7 +288,7 @@ class NodeTests(unittest.TestCase):
             n.transform()
 
             fx = util.compile(inputs=[x1, x2],
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
             np.testing.assert_equal(fx(a, b)[0], z)
 
     def test_Product(self):
@@ -302,14 +302,14 @@ class NodeTests(unittest.TestCase):
             x2 = core.Input(name='x2', shape=b.shape)
             n = nodes.Product('product')
             n.input_a.connect(x1)
-            with self.assertRaises(AssertionError):
+            with self.assertRaises(nodes.UnconnectedNodeError):
                 n.transform()
             n.input_b.connect(x2)
             self.assertTrue(n.is_ready())
             n.transform()
 
             fx = util.compile(inputs=[x1, x2],
-                               outputs=n.outputs.values())
+                              outputs=n.outputs.values())
             np.testing.assert_equal(fx(a, b)[0], a*b)
 
     def test_Affine_linear(self):
@@ -369,7 +369,7 @@ class NodeTests(unittest.TestCase):
         n.enable_dropout()
 
         n.input.connect(x1)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(nodes.UnconnectedNodeError):
             n.transform()
         n.dropout.connect(dropout)
         n.transform()
@@ -502,7 +502,7 @@ class NodeTests(unittest.TestCase):
         n.bias.value = b
 
         n.input.connect(x1)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(nodes.UnconnectedNodeError):
             n.transform()
         n.dropout.connect(dropout)
         n.transform()
