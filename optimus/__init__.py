@@ -71,6 +71,7 @@ from .losses import NegativeLogLikelihood
 from .losses import MeanSquaredError
 from .losses import CrossEntropy
 from .losses import WeightDecayPenalty
+from .losses import ContrastiveMargin
 
 # Framework classes
 from .framework import ConnectionManager

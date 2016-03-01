@@ -121,7 +121,7 @@ class WeightDecayPenalty(Node):
 
 
 class ContrastiveMargin(Node):
-    """
+    """Create a contrastive margin loss.
 
     Inputs
     ------
@@ -133,10 +133,12 @@ class ContrastiveMargin(Node):
         most similar, respectively.
 
     sim_margin : scalar
-        Margin between similar points within which no penalty is incurred.
+        Margin between similar points within which no penalty is incurred. If
+        value is <= 0, a penalty is always incurred.
 
     diff_margin : scalar
         Margin between dissimilar points within which no penalty is incurred.
+        If value is <= 0, a penalty is always incurred.
 
     Outputs
     -------
