@@ -5,8 +5,10 @@ important distinction that each object has a singular scalar output.
 """
 
 import theano.tensor as T
-from . import core
-from .nodes import Node
+
+import optimus.core as core
+from optimus.nodes import Node
+import optimus.functions as functions
 
 
 class NegativeLogLikelihood(Node):
@@ -32,7 +34,7 @@ class NegativeLogLikelihood(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         assert self.likelihoods.variable.ndim == 2
 
         col_index = self.index.variable
@@ -59,7 +61,7 @@ class CrossEntropy(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
 
         prediction = self.prediction.variable
         target = self.target.variable
@@ -86,7 +88,7 @@ class MeanSquaredError(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         if self.prediction.variable.ndim >= 2:
             xA = T.flatten(self.prediction.variable, outdim=2)
             xB = T.flatten(self.target.variable, outdim=2)
@@ -112,7 +114,71 @@ class WeightDecayPenalty(Node):
         self._outputs.append(self.output)
 
     def transform(self):
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         x_in = self.input.variable.flatten(2)
         w_mag = T.sqrt(T.sum(T.pow(x_in, 2.0), axis=-1))
         self.output.variable = self.weight.variable * T.mean(w_mag)
+
+
+class ContrastiveMargin(Node):
+    """
+
+    Inputs
+    ------
+    distance : vector
+        Observed distance between datapoints.
+
+    equivalence : vector
+        Similarity scores, normalized to [0, 1], corresponding to least and
+        most similar, respectively.
+
+    sim_margin : scalar
+        Margin between similar points within which no penalty is incurred.
+
+    diff_margin : scalar
+        Margin between dissimilar points within which no penalty is incurred.
+
+    Outputs
+    -------
+    output : scalar
+        Cost incurred given the input parameters.
+
+    Equation
+    --------
+    Given D: distance, y: equivalence ...
+        sim_cost = y*hwr(D - sim_margin)^2
+        diff_cost = (1 - y) * hwr(diff_margin - D)^2
+        total = ave(sim_cost + diff_cost)
+
+    """
+    def __init__(self, name):
+        super(ContrastiveMargin, self).__init__(name=name)
+        self.distance = core.Port(name=self.__own__('distance'))
+        self.equivalence = core.Port(name=self.__own__('equivalence'))
+        self.sim_margin = core.Port(name=self.__own__('sim_margin'))
+        self.diff_margin = core.Port(name=self.__own__('diff_margin'))
+        self._inputs.extend([self.distance, self.equivalence,
+                             self.sim_margin, self.diff_margin])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        """Transform inputs to outputs."""
+        self.validate_ports()
+
+        # TODO: Find a more reusable way of enforcing this behavior.
+        if self.distance.variable.ndim != 1:
+            raise ValueError("`distance` must be a vector.")
+
+        if self.equivalence.variable.ndim != 1:
+            raise ValueError("`equivalence` must be a vector.")
+
+        dist = self.distance.variable
+        equiv = self.equivalence.variable
+        smarg = self.sim_margin.variable
+        dmarg = self.diff_margin.variable
+
+        sim_cost = T.pow(functions.relu(dist - smarg), 2.0)
+        diff_cost = T.pow(functions.relu(dmarg - dist), 2.0)
+        total_cost = equiv * sim_cost + (1 - equiv) * diff_cost
+        self.output.variable = T.mean(total_cost)
