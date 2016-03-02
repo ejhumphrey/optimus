@@ -243,14 +243,16 @@ class Slice(Unary):
 
 
 class Log(Unary):
-    def __init__(self, name, epsilon=0.0):
-        Unary.__init__(self, name=name, epsilon=epsilon)
+    def __init__(self, name, epsilon=0.0, gain=1.0):
+        Unary.__init__(self, name=name, epsilon=epsilon, gain=gain)
         self.epsilon = epsilon
+        self.gain = gain
 
     def transform(self):
         """In-place transformation"""
         Unary.transform(self)
-        self.output.variable = T.log(self.input.variable + self.epsilon)
+        self.output.variable = T.log(
+            self.gain*self.input.variable + self.epsilon)
 
 
 class Sqrt(Unary):
