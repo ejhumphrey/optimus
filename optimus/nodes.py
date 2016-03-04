@@ -917,10 +917,31 @@ class Binary(Node):
         self._outputs.append(self.output)
 
 
+class Euclidean(Binary):
+    """Euclidean Node
+
+    Computes: z_n = \sqrt{\sum_i (xA_n[i] - xB_n[i])^2}
+
+    See also: RadialBasis, which maintains internal parameters.
+    """
+    def transform(self):
+        """Transform inputs to outputs."""
+        self.validate_ports()
+        if self.input_a.variable.ndim >= 2:
+            xA = T.flatten(self.input_a.variable, outdim=2)
+            xB = T.flatten(self.input_b.variable, outdim=2)
+            axis = 1
+        else:
+            xA = self.input_a.variable
+            xB = self.input_b.variable
+            axis = None
+        self.output.variable = T.sqrt(T.pow(xA - xB, 2.0).sum(axis=axis))
+
+
 class SquaredEuclidean(Binary):
     """Squared Euclidean Node
 
-    Computes: z_n = \sum_i(xA_n[i] - xB_n[i])^2
+    Computes: z_n = \sum_i (xA_n[i] - xB_n[i])^2
 
     See also: RadialBasis, which maintains internal parameters.
     """

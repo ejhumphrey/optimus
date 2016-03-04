@@ -120,8 +120,8 @@ class WeightDecayPenalty(Node):
         self.output.variable = self.weight.variable * T.mean(w_mag)
 
 
-class ContrastiveMargin(Node):
-    """Create a contrastive margin loss.
+class SimilarityMargin(Node):
+    """Create a contrastive margin loss, controlled by an `equivalence` score.
 
     Inputs
     ------
@@ -154,7 +154,7 @@ class ContrastiveMargin(Node):
 
     """
     def __init__(self, name):
-        super(ContrastiveMargin, self).__init__(name=name)
+        super(SimilarityMargin, self).__init__(name=name)
         self.distance = core.Port(name=self.__own__('distance'))
         self.equivalence = core.Port(name=self.__own__('equivalence'))
         self.sim_margin = core.Port(name=self.__own__('sim_margin'))
@@ -184,3 +184,127 @@ class ContrastiveMargin(Node):
         diff_cost = T.pow(functions.relu(dmarg - dist), 2.0)
         total_cost = equiv * sim_cost + (1 - equiv) * diff_cost
         self.output.variable = T.mean(total_cost)
+
+
+class ContrastiveMargin(Node):
+    """Create a contrastive margin loss, comparing the relationship between
+    three datapoints as two costs.
+
+    Inputs
+    ------
+    cost_sim : vector
+        Observed cost between two inputs defined as "similar".
+
+    cost_diff : vector
+        Observed cost between two inputs defined as "different".
+
+    margin_sim : scalar
+        Margin between similar points within which no penalty is incurred. If
+        value is <= 0, a penalty is always incurred.
+
+    margin_diff : scalar
+        Margin between dissimilar points within which no penalty is incurred.
+        If value is <= 0, a penalty is always incurred.
+
+    Outputs
+    -------
+    output : scalar
+        Cost incurred given the input parameters.
+
+    Equation
+    --------
+    Given above...
+        loss_sim = hwr(cost_sim - margin_sim)^2
+        loss_diff = hwr(margin_diff - cost_diff)^2
+        total = ave(loss_sim + loss_diff)
+
+    """
+    def __init__(self, name):
+        super(ContrastiveMargin, self).__init__(name=name)
+        self.cost_sim = core.Port(name=self.__own__('cost_sim'))
+        self.cost_diff = core.Port(name=self.__own__('cost_diff'))
+        self.margin_sim = core.Port(name=self.__own__('margin_sim'))
+        self.margin_diff = core.Port(name=self.__own__('margin_diff'))
+        self._inputs.extend([self.cost_sim, self.cost_diff,
+                             self.margin_sim, self.margin_diff])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        """Transform inputs to outputs."""
+        self.validate_ports()
+
+        # TODO: Find a more reusable way of enforcing this behavior.
+        if self.cost_sim.variable.ndim != 1:
+            raise ValueError("`cost_sim` must be a vector.")
+
+        if self.cost_diff.variable.ndim != 1:
+            raise ValueError("`cost_diff` must be a vector.")
+
+        cost_sim = self.cost_sim.variable
+        cost_diff = self.cost_diff.variable
+        smarg = self.margin_sim.variable
+        dmarg = self.margin_diff.variable
+
+        loss_sim = T.pow(functions.relu(cost_sim - smarg), 2.0)
+        loss_diff = T.pow(functions.relu(dmarg - cost_diff), 2.0)
+        self.output.variable = T.mean(loss_sim + loss_diff)
+
+
+class PairwiseRank(Node):
+    """Create a pairwise rank loss, where the cost of a similar pair should
+    be alpha-times smaller than a the cost of a dissimilar pair.
+
+    Inputs
+    ------
+    cost_sim : vector
+        Observed cost between two inputs defined as "similar".
+
+    cost_diff : vector
+        Observed cost between two inputs defined as "different".
+
+    alpha : scalar
+        Parameter controlling the separation between dissimilar manifolds;
+        when in doubt, set to 1.
+
+    Outputs
+    -------
+    output : scalar
+        Cost incurred given the input parameters.
+
+    Equation
+    --------
+    Given above...
+        cost = hwr(cost_diff - alpha * cost_sim + margin)^2
+        total = ave(loss_sim + loss_diff)
+
+    """
+    def __init__(self, name):
+        super(PairwiseRank, self).__init__(name=name)
+        self.cost_sim = core.Port(name=self.__own__('cost_sim'))
+        self.cost_diff = core.Port(name=self.__own__('cost_diff'))
+        self.alpha = core.Port(name=self.__own__('alpha'))
+        self.margin = core.Port(name=self.__own__('margin'))
+        self._inputs.extend([self.cost_sim, self.cost_diff,
+                             self.alpha, self.margin])
+        self.output = core.Port(name=self.__own__('output'))
+        self._outputs.append(self.output)
+
+    def transform(self):
+        """Transform inputs to outputs."""
+        self.validate_ports()
+
+        # TODO: Find a more reusable way of enforcing this behavior.
+        if self.cost_sim.variable.ndim != 1:
+            raise ValueError("`cost_sim` must be a vector.")
+
+        if self.cost_diff.variable.ndim != 1:
+            raise ValueError("`cost_diff` must be a vector.")
+
+        cost_sim = self.cost_sim.variable
+        cost_diff = self.cost_diff.variable
+        alpha = self.alpha.variable
+        margin = self.margin.variable
+
+        cost = cost_diff - alpha * cost_sim + margin
+        self.output.variable = T.mean(T.pow(functions.relu(cost), 2.0))

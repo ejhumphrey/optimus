@@ -62,6 +62,7 @@ from .nodes import CrossProduct
 from .nodes import SelectIndex
 from .nodes import MaxNotIndex
 from .nodes import MinNotIndex
+from .nodes import Euclidean
 from .nodes import SquaredEuclidean
 from .nodes import Divide
 from .nodes import Product
@@ -71,7 +72,9 @@ from .losses import NegativeLogLikelihood
 from .losses import MeanSquaredError
 from .losses import CrossEntropy
 from .losses import WeightDecayPenalty
+from .losses import SimilarityMargin
 from .losses import ContrastiveMargin
+from .losses import PairwiseRank
 
 # Framework classes
 from .framework import ConnectionManager
