@@ -375,7 +375,7 @@ class Driver(object):
 
         param_file_fmt = "%%s-%%0%dd-%s" % (np.ceil(np.log10(max_iter)+1),
                                             self.TIME_FMT)
-        self._last_params = self.graph.param_values
+        self._last_saved_params = None
         try:
             for n_iter, data in enumerate(source):
                 data.update(**hyperparams)
@@ -392,6 +392,7 @@ class Driver(object):
 
                 # Checkpoint params if appropriate iteration.
                 if n_iter > 0 and (n_iter % save_freq) == 0:
+                    self._last_saved_params = key
                     self._save_params(key)
 
                 # Log progress
@@ -406,14 +407,13 @@ class Driver(object):
                 if not np.isfinite(loss):
                     print("Caught a non-finite loss at iteration: {} "
                           "".format(n_iter))
-                    if nan_exceptions <= 0:
+                    if nan_exceptions <= 0 or self._last_saved_params is None:
                         print("Stopping.")
                         break
-                    print("Reseting parameter values and moving on...")
-                    self.graph.param_values = self._last_params
+                    key = self._last_saved_params
+                    print("Reseting parameter values to {}".format(key))
+                    self.graph.param_values = self.parameter_cache.get(key)
                     nan_exceptions = nan_exceptions - 1
-
-                self._last_params = self.graph.param_values
 
         except KeyboardInterrupt:
             print("Stopping early after {} iterations".format(n_iter))
@@ -455,6 +455,4 @@ class Driver(object):
     def __del__(self):
         if not self.log_file:
             return
-        outdir = self.output_directory if self.output_directory else './'
-        log_file = os.path.join(outdir, self.log_file)
-        self.stats.to_csv(log_file)
+        self.stats.to_csv(self.log_file)
