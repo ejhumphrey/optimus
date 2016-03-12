@@ -1,7 +1,7 @@
 """Magic and hackery."""
 
 import json
-
+import numpy as np
 import theano
 import theano.tensor as T
 
@@ -105,11 +105,20 @@ def __str_convert__(obj):
         return obj
 
 
+def serialize(self, obj):
+    if isinstance(obj, np.ndarray):
+        obj = obj.tolist()
+    elif hasattr(obj, '__json__'):
+        obj = getattr(obj, '__json__', obj)
+
+    return obj
+
+
 class JSONSupport():
     """Context manager for temporary JSON support."""
     def __enter__(self):
         # Encoder returns the object's `__json__` property.
-        json.JSONEncoder.default = lambda self, jobj: jobj.__json__
+        json.JSONEncoder.default = serialize
 
         # Decoder looks for the class name, and calls it's class constructor.
         def decode(obj):
