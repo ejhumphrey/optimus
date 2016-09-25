@@ -300,7 +300,7 @@ class Driver(object):
     TIME_FMT = "%04d%02d%02d_%02dh%02dm%02ds"
 
     def __init__(self, graph, name, output_directory=None,
-                 parameter_cache=None, log_file=None, display=True):
+                 parameter_cache=None, log_file=None, display=False):
         """Create an optimus training driver.
 
         Parameters
@@ -320,7 +320,7 @@ class Driver(object):
         log_file : str, default=None
             Path to a file for writing progress.
 
-        display : bool, default=True
+        display : bool, default=False
             Draw the loss over iteration.
 
         TODO
@@ -414,12 +414,13 @@ class Driver(object):
                 # Log progress
                 if (n_iter % print_freq) == 0:
                     self.print_last_stats(row, max_iter)
-                    canvas.set_data(self.stats.iteration, self.stats.loss)
-                    axes.set_ylim(self.stats.loss.min()*1.1,
-                                  self.stats.loss.max()*1.1)
-                    axes.set_xlim(0, self.stats.iteration.max())
-                    plt.draw()
-                    plt.pause(0.01)
+                    if self.display:
+                        canvas.set_data(self.stats.iteration, self.stats.loss)
+                        axes.set_ylim(self.stats.loss.min()*1.1,
+                                      self.stats.loss.max()*1.1)
+                        axes.set_xlim(0, self.stats.iteration.max())
+                        plt.draw()
+                        plt.pause(0.01)
 
                 # Break if done
                 if n_iter >= max_iter:
