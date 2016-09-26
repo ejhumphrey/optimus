@@ -389,7 +389,7 @@ class Driver(object):
             fig, axes = plt.subplots(1, 1)
             canvas = axes.plot([0], [0])[0]
 
-        param_file_fmt = "%%s-%%0%dd-%s" % (np.ceil(np.log10(max_iter)+1),
+        param_file_fmt = "%%s-%%0%dd-%s" % (np.ceil(np.log10(max_iter) + 1),
                                             self.TIME_FMT)
         self._last_saved_params = None
         try:
@@ -416,8 +416,8 @@ class Driver(object):
                     self.print_last_stats(row, max_iter)
                     if self.display:
                         canvas.set_data(self.stats.iteration, self.stats.loss)
-                        axes.set_ylim(self.stats.loss.min()*1.1,
-                                      self.stats.loss.max()*1.1)
+                        axes.set_ylim(self.stats.loss.min() * 1.1,
+                                      self.stats.loss.max() * 1.1)
                         axes.set_xlim(0, self.stats.iteration.max())
                         plt.draw()
                         plt.pause(0.01)
