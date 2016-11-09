@@ -22,6 +22,7 @@ def named_list(items):
 
 class ConnectionManager(object):
     """TODO(ejhumphrey): write me."""
+
     def __init__(self, edges):
         """
         edges: list of Port tuples
@@ -69,6 +70,7 @@ class Graph(JObject):
     Property attributes are named dictionaries, while the corresponding
     private variables are lists.
     """
+
     def __init__(self, name, inputs, nodes, connections, outputs,
                  loss=None, updates=None, constraints=None,
                  chunk_size=250, verbose=False, momentum=0):
@@ -286,7 +288,7 @@ def data_stepper(chunk_size=250, **kwargs):
 
     num_chunks = int(np.ceil(len(arrays.values()[0]) / float(chunk_size)))
     for n in range(num_chunks):
-        i0, i1 = n*chunk_size, (n+1)*chunk_size
+        i0, i1 = n * chunk_size, (n + 1) * chunk_size
         array_chunk = dict((key, value[i0:i1])
                            for key, value in six.iteritems(arrays))
         array_chunk.update(constants)
