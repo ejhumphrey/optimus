@@ -159,6 +159,6 @@ def test_ContrastiveMargin_with_filter():
     c_diff = np.array([0.5, 0, 2])
     margins = dict(margin_sim=0.25, margin_diff=2.0)
 
-    exp = 1.5**2 + 0.25**2
+    exp = 3.1875
     cost = fx(cost_sim=c_sim, cost_diff=c_diff, **margins)
     assert cost[0] == exp

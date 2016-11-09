@@ -270,9 +270,8 @@ class ContrastiveMargin(Node):
         loss_diff = T.pow(functions.relu(dmarg - cost_diff), 2.0)
 
         if self.filter_zeros:
-            idx = (loss_sim > 0) & (loss_diff > 0)
-            loss_sim = loss_sim[idx.nonzero()]
-            loss_diff = loss_diff[idx.nonzero()]
+            loss_sim = loss_sim[(loss_sim > 0).nonzero()]
+            loss_diff = loss_diff[(loss_diff > 0).nonzero()]
 
         self.output.variable = T.mean(loss_sim) + T.mean(loss_diff)
 
