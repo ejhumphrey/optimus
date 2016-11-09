@@ -238,7 +238,7 @@ class ContrastiveMargin(Node):
 
     """
 
-    def __init__(self, name):
+    def __init__(self, name, filter_zeros=True):
         super(ContrastiveMargin, self).__init__(name=name)
         self.cost_sim = core.Port(name=self.__own__('cost_sim'))
         self.cost_diff = core.Port(name=self.__own__('cost_diff'))
@@ -248,6 +248,7 @@ class ContrastiveMargin(Node):
                              self.margin_sim, self.margin_diff])
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
+        self.filter_zeros = filter_zeros
 
     def transform(self):
         """Transform inputs to outputs."""
@@ -261,12 +262,17 @@ class ContrastiveMargin(Node):
             raise ValueError("`cost_diff` must be a vector.")
 
         cost_sim = self.cost_sim.variable
-        smarg = self.margin_sim.variable
-        loss_sim = T.pow(functions.relu(cost_sim - smarg), 2.0)
-
         cost_diff = self.cost_diff.variable
+        smarg = self.margin_sim.variable
         dmarg = self.margin_diff.variable
+
+        loss_sim = T.pow(functions.relu(cost_sim - smarg), 2.0)
         loss_diff = T.pow(functions.relu(dmarg - cost_diff), 2.0)
+
+        if self.filter_zeros:
+            idx = (loss_sim > 0) & (loss_diff > 0)
+            loss_sim = loss_sim[idx.nonzero()]
+            loss_diff = loss_diff[idx.nonzero()]
 
         self.output.variable = T.mean(loss_sim) + T.mean(loss_diff)
 
