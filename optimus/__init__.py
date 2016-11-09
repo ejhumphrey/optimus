@@ -71,6 +71,7 @@ from .nodes import Product
 from .losses import NegativeLogLikelihood
 from .losses import MeanSquaredError
 from .losses import CrossEntropy
+from .losses import CrossEntropyLoss
 from .losses import WeightDecayPenalty
 from .losses import SimilarityMargin
 from .losses import ContrastiveMargin

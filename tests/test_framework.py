@@ -1,6 +1,4 @@
-import biggie
 import numpy as np
-import os
 import pytest
 
 import optimus
@@ -72,7 +70,8 @@ def test_convergence(workspace):
                            probs=[0.5, 0.5])
 
     trainer, predictor = build_model()
-    params = biggie.Stash(os.path.join(workspace, 'params.hdf5'))
+    # params = biggie.Stash(os.path.join(workspace, 'params.hdf5'))
+    params = dict()
     driver = optimus.Driver(graph=trainer, name='take000',
                             parameter_cache=params,
                             log_file='training_stats.csv')

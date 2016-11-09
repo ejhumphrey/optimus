@@ -33,11 +33,11 @@ def test_NegativeLogLikelihood():
     assert fx(likelihoods=x_obs[1:], y_true=y_obs[1:])[0] == 0
 
 
-def test_CrossEntropy():
+def test_CrossEntropyLoss():
     pred = core.Input(name='prediction', shape=(None, 2))
     target = core.Input(name='target', shape=(None, 2))
 
-    xentropy = losses.CrossEntropy(name='cross_entropy')
+    xentropy = losses.CrossEntropyLoss(name='cross_entropy')
 
     xentropy.prediction.connect(pred)
     with pytest.raises(nodes.UnconnectedNodeError):
@@ -59,13 +59,13 @@ def test_CrossEntropy():
     assert fx(prediction=x_obs[1:], target=y_obs[1:])[0] < 0.01
 
 
-def test_ContrastiveMargin():
+def test_SimilarityMargin():
     dist = core.Input(name='distance', shape=(None,))
     equiv = core.Input(name='equivalence', shape=(None,))
     sim_margin = core.Input(name='sim_margin', shape=None)
     diff_margin = core.Input(name='diff_margin', shape=None)
 
-    contrast = losses.ContrastiveMargin(name='contrastive_margin')
+    contrast = losses.SimilarityMargin(name='sim_margin')
 
     contrast.distance.connect(dist)
     with pytest.raises(nodes.UnconnectedNodeError):
@@ -87,7 +87,78 @@ def test_ContrastiveMargin():
     margins = dict(sim_margin=1.0, diff_margin=2.0)
     exps = [0, 1.5**2, 1.5**2, 0]
     for n in range(4):
-        idx = slice(n, n+1)
+        idx = slice(n, n + 1)
         cost = fx(distance=dvals[idx], equivalence=evals[idx], **margins)
         assert cost[0] == exps[n], \
             (n, dvals[idx], evals[idx], cost[0], exps[n])
+
+
+def test_ContrastiveMargin_no_filter():
+    cost_sim = core.Input(name='cost_sim', shape=(None,))
+    cost_diff = core.Input(name='cost_diff', shape=(None,))
+    margin_sim = core.Input(name='margin_sim', shape=None)
+    margin_diff = core.Input(name='margin_diff', shape=None)
+
+    contrast = losses.ContrastiveMargin(name='contrastive_margin',
+                                        filter_zeros=False)
+
+    contrast.cost_sim.connect(cost_sim)
+    with pytest.raises(nodes.UnconnectedNodeError):
+        contrast.transform()
+
+    contrast.cost_diff.connect(cost_diff)
+    contrast.margin_sim.connect(margin_sim)
+    contrast.margin_diff.connect(margin_diff)
+    assert contrast.output.shape is None
+    contrast.transform()
+
+    # TODO: Fixshape
+    # assert contrast.output.shape == ()
+    fx = util.compile(inputs=[cost_sim, cost_diff, margin_sim, margin_diff],
+                      outputs=[contrast.output])
+
+    c_sim = np.array([0.5, 0.1, 0.5])
+    c_diff = np.array([0.5, 0, 2])
+    margins = dict(margin_sim=0.25, margin_diff=2.0)
+    exps = [1.5**2 + 0.25**2, 4, 0.25**2]
+    for n in range(len(exps)):
+        idx = slice(n, n + 1)
+        cost = fx(cost_sim=c_sim[idx], cost_diff=c_diff[idx], **margins)
+        assert cost[0] == exps[n]
+
+
+def _relu(x):
+    return x * (x > 0)
+
+
+def test_ContrastiveMargin_with_filter():
+    cost_sim = core.Input(name='cost_sim', shape=(None,))
+    cost_diff = core.Input(name='cost_diff', shape=(None,))
+    margin_sim = core.Input(name='margin_sim', shape=None)
+    margin_diff = core.Input(name='margin_diff', shape=None)
+
+    contrast = losses.ContrastiveMargin(name='contrastive_margin',
+                                        filter_zeros=True)
+
+    contrast.cost_sim.connect(cost_sim)
+    with pytest.raises(nodes.UnconnectedNodeError):
+        contrast.transform()
+
+    contrast.cost_diff.connect(cost_diff)
+    contrast.margin_sim.connect(margin_sim)
+    contrast.margin_diff.connect(margin_diff)
+    assert contrast.output.shape is None
+    contrast.transform()
+
+    # TODO: Fixshape
+    # assert contrast.output.shape == ()
+    fx = util.compile(inputs=[cost_sim, cost_diff, margin_sim, margin_diff],
+                      outputs=[contrast.output])
+
+    c_sim = np.array([0.5, 0.1, 0.5])
+    c_diff = np.array([0.5, 0, 2])
+    margins = dict(margin_sim=0.25, margin_diff=2.0)
+
+    exp = 1.5**2 + 0.25**2
+    cost = fx(cost_sim=c_sim, cost_diff=c_diff, **margins)
+    assert cost[0] == exp

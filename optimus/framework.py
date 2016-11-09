@@ -448,7 +448,7 @@ class Driver(object):
             self.graph.save_param_values(param_file)
 
         if self.parameter_cache is not None:
-            self.parameter_cache.add(key, self.graph.param_values)
+            self.parameter_cache[key] = self.graph.param_values
 
         return
 

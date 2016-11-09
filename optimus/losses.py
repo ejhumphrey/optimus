@@ -23,6 +23,7 @@ class NegativeLogLikelihood(Node):
 
     See also: optimus.nodes.SelectIndex
     """
+
     def __init__(self, name):
         # Input Validation
         Node.__init__(self, name=name)
@@ -49,6 +50,7 @@ class CrossEntropy(Node):
     NOTE: Both inputs *must* be non-negative, and only `target` may contain
     zeros. Expect all hell to break loose if this is violated.
     """
+
     def __init__(self, name, epsilon=10.0**-6):
         # Input Validation
         Node.__init__(self, name=name, epsilon=epsilon)
@@ -69,7 +71,20 @@ class CrossEntropy(Node):
         output = target * T.log((prediction + self.epsilon) / eps_p1)
         output += (1.0 - target) * T.log(
             (1.0 - prediction + self.epsilon) / eps_p1)
-        self.output.variable = -T.mean(output)
+        self.output.variable = -output
+
+
+class CrossEntropyLoss(CrossEntropy):
+    """Pointwise cross-entropy between a `prediction` and `target`.
+
+    NOTE: Both inputs *must* be non-negative, and only `target` may contain
+    zeros. Expect all hell to break loose if this is violated.
+    """
+
+    def transform(self):
+        """writeme"""
+        super(CrossEntropyLoss, self).transform()
+        self.output.variable = T.mean(self.output.variable)
 
 
 class MeanSquaredError(Node):
@@ -77,6 +92,7 @@ class MeanSquaredError(Node):
 
     See also: optimus.nodes.SquaredEuclidean
     """
+
     def __init__(self, name):
         # Input Validation
         Node.__init__(self, name=name)
@@ -105,6 +121,7 @@ class WeightDecayPenalty(Node):
 
     See also: optimus.nodes.L2Magnitude.
     """
+
     def __init__(self, name):
         Node.__init__(self, name=name)
         self.input = core.Port(name=self.__own__('input'))
@@ -153,6 +170,7 @@ class SimilarityMargin(Node):
         total = ave(sim_cost + diff_cost)
 
     """
+
     def __init__(self, name):
         super(SimilarityMargin, self).__init__(name=name)
         self.distance = core.Port(name=self.__own__('distance'))
@@ -219,7 +237,8 @@ class ContrastiveMargin(Node):
         total = ave(loss_sim + loss_diff)
 
     """
-    def __init__(self, name):
+
+    def __init__(self, name, filter_zeros=True):
         super(ContrastiveMargin, self).__init__(name=name)
         self.cost_sim = core.Port(name=self.__own__('cost_sim'))
         self.cost_diff = core.Port(name=self.__own__('cost_diff'))
@@ -229,6 +248,7 @@ class ContrastiveMargin(Node):
                              self.margin_sim, self.margin_diff])
         self.output = core.Port(name=self.__own__('output'))
         self._outputs.append(self.output)
+        self.filter_zeros = filter_zeros
 
     def transform(self):
         """Transform inputs to outputs."""
@@ -248,6 +268,12 @@ class ContrastiveMargin(Node):
 
         loss_sim = T.pow(functions.relu(cost_sim - smarg), 2.0)
         loss_diff = T.pow(functions.relu(dmarg - cost_diff), 2.0)
+
+        if self.filter_zeros:
+            idx = (loss_sim > 0) & (loss_diff > 0)
+            loss_sim = loss_sim[idx.nonzero()]
+            loss_diff = loss_diff[idx.nonzero()]
+
         self.output.variable = T.mean(loss_sim + loss_diff)
 
 
@@ -279,6 +305,7 @@ class PairwiseRank(Node):
         total = ave(loss_sim + loss_diff)
 
     """
+
     def __init__(self, name):
         super(PairwiseRank, self).__init__(name=name)
         self.cost_sim = core.Port(name=self.__own__('cost_sim'))
