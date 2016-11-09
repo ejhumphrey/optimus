@@ -19,6 +19,7 @@ class Node(core.JObject):
     """
     Nodes in the graph perform parameter management and micro-math operations.
     """
+
     def __init__(self, name, **kwargs):
         """writeme."""
         self.name = name
@@ -138,6 +139,7 @@ class MultiInput(Node):
 
 class Add(MultiInput):
     """Summation node."""
+
     def transform(self):
         """writeme"""
         self.validate_ports()
@@ -147,6 +149,7 @@ class Add(MultiInput):
 
 class Concatenate(MultiInput):
     """Concatenate a set of inputs."""
+
     def __init__(self, name, num_inputs, axis=-1):
         MultiInput.__init__(self, name=name, num_inputs=num_inputs, axis=axis)
         self.axis = axis
@@ -160,6 +163,7 @@ class Concatenate(MultiInput):
 
 class Stack(MultiInput):
     """Form a rank+1 tensor of a set of inputs; optionally reorder the axes."""
+
     def __init__(self, name, num_inputs, axes=None):
         MultiInput.__init__(self, name=name, num_inputs=num_inputs, axes=axes)
         self.axes = axes
@@ -175,6 +179,7 @@ class Stack(MultiInput):
 
 class Constant(Node):
     """Single input / output nodes."""
+
     def __init__(self, name, shape):
         Node.__init__(self, name=name, shape=shape)
         self.data = core.Parameter(shape=shape, name=self.__own__('data'))
@@ -189,6 +194,7 @@ class Constant(Node):
 
 class Unary(Node):
     """Single input / output nodes."""
+
     def __init__(self, name, **kwargs):
         Node.__init__(self, name=name, **kwargs)
         self.input = core.Port(name=self.__own__('input'))
@@ -224,6 +230,7 @@ class Flatten(Unary):
 
 class Slice(Unary):
     """writeme"""
+
     def __init__(self, name, slices):
         # Input Validation
         Unary.__init__(self, name=name, slices=slices)
@@ -252,7 +259,7 @@ class Log(Unary):
         """In-place transformation"""
         Unary.transform(self)
         self.output.variable = T.log(
-            self.gain*self.input.variable + self.epsilon)
+            self.gain * self.input.variable + self.epsilon)
 
 
 class Sqrt(Unary):
@@ -288,6 +295,7 @@ class Sigmoid(Unary):
 
 class Softmax(Unary):
     """Apply the softmax to an input."""
+
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -299,6 +307,7 @@ class Softmax(Unary):
 
 class RectifiedLinear(Unary):
     """Apply the (hard) rectified linear function to an input."""
+
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -310,6 +319,7 @@ class RectifiedLinear(Unary):
 
 class SoftRectifiedLinear(Unary):
     """Apply the (hard) rectified linear function to an input."""
+
     def __init__(self, name, knee):
         Unary.__init__(self, name=name, knee=knee)
         self.knee = knee
@@ -323,6 +333,7 @@ class SoftRectifiedLinear(Unary):
 
 class Tanh(Unary):
     """Apply the hyperbolic tangent to an input."""
+
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -332,8 +343,26 @@ class Tanh(Unary):
         self.output.variable = T.tanh(self.input.variable)
 
 
+class SliceGT(Unary):
+    """Return a """
+
+    def __init__(self, name, value):
+        Unary.__init__(self, name=name, value=value)
+        self.value = value
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        if self.input.variable.ndim != 1:
+            raise ValueError("`input` must be a vector.")
+
+        idx = self.input.variable > self.value
+        self.output.variable = self.input.variable[idx.nonzero()]
+
+
 class Sum(Unary):
     """Returns the sum of an input, or over a given axis."""
+
     def __init__(self, name, axis=None):
         Unary.__init__(self, name=name, axis=axis)
         self.axis = axis

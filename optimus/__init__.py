@@ -31,6 +31,7 @@ from .nodes import Constant
 from .nodes import Dimshuffle
 from .nodes import Flatten
 from .nodes import Slice
+from .nodes import SliceGT
 from .nodes import L1Magnitude
 from .nodes import L2Magnitude
 from .nodes import Max

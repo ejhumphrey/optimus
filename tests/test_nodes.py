@@ -10,7 +10,7 @@ import optimus.util as util
 
 def __relu__(x):
     "Numpy Rectified Linear Unit."
-    return 0.5*(np.abs(x) + x)
+    return 0.5 * (np.abs(x) + x)
 
 
 class NodeTests(unittest.TestCase):
@@ -529,6 +529,18 @@ class NodeTests(unittest.TestCase):
         z = np.power(a.reshape(2, 2, 1) - w.reshape(1, 2, 3),
                      2.0).sum(axis=1)
         np.testing.assert_equal(fx(a)[0], z)
+
+    def test_SliceGT(self):
+        x = core.Input(name='x', shape=(None,))
+
+        n = nodes.SliceGT(name='slice-greater', value=0)
+        n.input.connect(x)
+        n.transform()
+
+        fx = util.compile(inputs=[x], outputs=n.outputs.values())
+        a = np.array([1, -2, 0])
+        np.testing.assert_equal(fx(a)[0], np.array([1]))
+
 
 if __name__ == "__main__":
     unittest.main()
