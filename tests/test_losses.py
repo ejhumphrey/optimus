@@ -33,6 +33,35 @@ def test_NegativeLogLikelihood():
     assert fx(likelihoods=x_obs[1:], y_true=y_obs[1:])[0] == 0
 
 
+def test_CrossEntropy():
+    pred = core.Input(name='prediction', shape=(None, 2))
+    target = core.Input(name='target', shape=(None, 2))
+
+    xentropy = losses.CrossEntropy(name='cross_entropy')
+
+    xentropy.prediction.connect(pred)
+    with pytest.raises(nodes.UnconnectedNodeError):
+        xentropy.transform()
+
+    xentropy.target.connect(target)
+    assert xentropy.output.shape is None
+    xentropy.transform()
+
+    # TODO: Fixshape
+    # assert xentropy.output.shape == ()
+    fx = util.compile(inputs=[pred, target], outputs=[xentropy.output])
+
+    x_obs = np.array([[0.001, 1 - 0.001], [0.001, 1 - 0.001]])
+    y_obs = np.array([[1, 0], [0, 1]])
+    output = fx(prediction=x_obs, target=y_obs)[0]
+
+    assert output.ndim == 1
+    # Pretty wrong answer
+    assert output[0] > 6
+    # Right answer
+    assert output[1] < 0.01
+
+
 def test_CrossEntropyLoss():
     pred = core.Input(name='prediction', shape=(None, 2))
     target = core.Input(name='target', shape=(None, 2))

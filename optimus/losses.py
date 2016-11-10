@@ -71,7 +71,7 @@ class CrossEntropy(Node):
         output = target * T.log((prediction + self.epsilon) / eps_p1)
         output += (1.0 - target) * T.log(
             (1.0 - prediction + self.epsilon) / eps_p1)
-        self.output.variable = -output
+        self.output.variable = -output.mean(axis=1)
 
 
 class CrossEntropyLoss(CrossEntropy):
