@@ -62,7 +62,7 @@ def array_stepper(value, length, stride=1, axis=0,
     value_slice: np.ndarray
         Slices of value, with the 'axis' dimension of size 'length'.
     """
-    axes_order = range(value.ndim)
+    axes_order = list(range(value.ndim))
     axes_order.insert(0, axes_order.pop(axis))
     axes_reorder = np.array(axes_order).argsort()
     value = value.transpose(axes_order)
