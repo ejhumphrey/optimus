@@ -70,7 +70,7 @@ def array_stepper(value, length, stride=1, axis=0,
     if mode == 'full':
         pad = np.zeros([length] + list(value.shape[1:]))
     elif mode == 'same':
-        pad = np.zeros([length / 2] + list(value.shape[1:]))
+        pad = np.zeros([int(length / 2)] + list(value.shape[1:]))
 
     if pad is not None:
         pad[:] = fill_value
