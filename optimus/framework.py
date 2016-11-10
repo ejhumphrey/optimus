@@ -399,6 +399,7 @@ class Driver(object):
                 data.update(**hyperparams)
                 # TODO: Technically, nothing is forcing the loss to be
                 # returned as an output...
+                param_values = self.graph.param_values
                 outputs = self.graph(**data)
                 loss = outputs.get(self.graph.loss.name, np.nan)
                 key = self.iter_to_key(n_iter, param_file_fmt)
@@ -434,7 +435,7 @@ class Driver(object):
                           "".format(n_iter))
                     if nan_exceptions <= 0 or self._last_saved_params is None:
                         print("Stopping.")
-                        break
+                        return data, outputs, param_values
                     key = self._last_saved_params
                     print("Reseting parameter values to {}".format(key))
                     self.graph.param_values = self.parameter_cache.get(key)
