@@ -1,15 +1,16 @@
 """Tests for Node objects."""
 
+import numpy as np
 import unittest
 
-import numpy as np
-import optimus.nodes as nodes
 import optimus.core as core
+import optimus.nodes as nodes
+import optimus.util as util
 
 
 def __relu__(x):
     "Numpy Rectified Linear Unit."
-    return 0.5*(np.abs(x) + x)
+    return 0.5 * (np.abs(x) + x)
 
 
 class NodeTests(unittest.TestCase):
@@ -28,7 +29,7 @@ class NodeTests(unittest.TestCase):
         n.data.value = 1.0
 
         n.transform()
-        fx = nodes.compile(inputs=[], outputs=[n.output])
+        fx = util.compile(inputs=[], outputs=[n.output])
 
         np.testing.assert_equal(np.array(fx()[0]), 1.0)
 
@@ -39,7 +40,7 @@ class NodeTests(unittest.TestCase):
         n = nodes.Add(name='accumulate', num_inputs=2)
         n.input_0.connect(x1)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(nodes.UnconnectedNodeError):
             n.transform()
 
         n.input_1.connect(x2)
@@ -47,8 +48,8 @@ class NodeTests(unittest.TestCase):
         n.transform()
         self.assertEqual(n.output.shape, (2, 2))
 
-        fx = nodes.compile(inputs=[x1, x2],
-                           outputs=[n.output])
+        fx = util.compile(inputs=[x1, x2],
+                          outputs=[n.output])
         a = np.array([[3, -1], [3, 7]])
         b = np.array([[1, 2], [3, 4]])
 
@@ -63,7 +64,7 @@ class NodeTests(unittest.TestCase):
         n.input.connect(x1)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1], outputs=[n.counts])
+        fx = util.compile(inputs=[x1], outputs=[n.counts])
         a = np.array([3, 0, 3, 1])
 
         np.testing.assert_equal(n.counts.value, np.array([0, 0, 0, 0]))
@@ -79,13 +80,13 @@ class NodeTests(unittest.TestCase):
         for axis in range(2):
             n = nodes.Concatenate(name='concatenate', num_inputs=2, axis=axis)
             n.input_0.connect(x1)
-            with self.assertRaises(AssertionError):
+            with self.assertRaises(nodes.UnconnectedNodeError):
                 n.transform()
             n.input_1.connect(x2)
             n.transform()
 
-            fx = nodes.compile(inputs=[x1, x2],
-                               outputs=[n.output])
+            fx = util.compile(inputs=[x1, x2],
+                              outputs=[n.output])
 
             z = fx(a, b)[0]
             np.testing.assert_equal(z, np.concatenate([a, b], axis=axis))
@@ -102,8 +103,8 @@ class NodeTests(unittest.TestCase):
             n.input_0.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=[x1, x2],
-                               outputs=[n.output])
+            fx = util.compile(inputs=[x1, x2],
+                              outputs=[n.output])
 
             z = fx(a, b)[0]
             expected = np.array([a, b])
@@ -121,8 +122,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0].shape, shp)
 
@@ -136,8 +137,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], ans)
 
@@ -147,8 +148,8 @@ class NodeTests(unittest.TestCase):
         log.input.connect(x1)
         log.transform()
 
-        fx = nodes.compile(inputs=log.inputs.values(),
-                           outputs=log.outputs.values())
+        fx = util.compile(inputs=log.inputs.values(),
+                          outputs=log.outputs.values())
 
         a = np.array([[3, 1], [4, 7]], dtype=np.float32)
         z = fx(a)[0]
@@ -163,8 +164,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
 
@@ -175,8 +176,8 @@ class NodeTests(unittest.TestCase):
         n.input.connect(x1)
         n.transform()
 
-        fx = nodes.compile(inputs=n.inputs.values(),
-                           outputs=n.outputs.values())
+        fx = util.compile(inputs=n.inputs.values(),
+                          outputs=n.outputs.values())
 
         np.testing.assert_equal(fx(a)[0], np.zeros_like(a))
 
@@ -192,8 +193,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -206,8 +207,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -220,8 +221,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -234,8 +235,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
 
             np.testing.assert_equal(fx(a)[0], res[idx])
 
@@ -250,8 +251,8 @@ class NodeTests(unittest.TestCase):
             n.input.connect(x1)
             n.transform()
 
-            fx = nodes.compile(inputs=n.inputs.values(),
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=n.inputs.values(),
+                              outputs=n.outputs.values())
             np.testing.assert_almost_equal(fx(a)[0], ans)
 
     def test_SelectIndex(self):
@@ -265,8 +266,8 @@ class NodeTests(unittest.TestCase):
         n.index.connect(idx)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1, idx],
-                           outputs=n.outputs.values())
+        fx = util.compile(inputs=[x1, idx],
+                          outputs=n.outputs.values())
 
         np.testing.assert_equal(fx(a, i)[0], np.array([-1, 4]))
 
@@ -286,8 +287,8 @@ class NodeTests(unittest.TestCase):
             n.input_b.connect(x2)
             n.transform()
 
-            fx = nodes.compile(inputs=[x1, x2],
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=[x1, x2],
+                              outputs=n.outputs.values())
             np.testing.assert_equal(fx(a, b)[0], z)
 
     def test_Product(self):
@@ -301,14 +302,14 @@ class NodeTests(unittest.TestCase):
             x2 = core.Input(name='x2', shape=b.shape)
             n = nodes.Product('product')
             n.input_a.connect(x1)
-            with self.assertRaises(AssertionError):
+            with self.assertRaises(nodes.UnconnectedNodeError):
                 n.transform()
             n.input_b.connect(x2)
             self.assertTrue(n.is_ready())
             n.transform()
 
-            fx = nodes.compile(inputs=[x1, x2],
-                               outputs=n.outputs.values())
+            fx = util.compile(inputs=[x1, x2],
+                              outputs=n.outputs.values())
             np.testing.assert_equal(fx(a, b)[0], a*b)
 
     def test_Affine_linear(self):
@@ -328,7 +329,7 @@ class NodeTests(unittest.TestCase):
         n.input.connect(x1)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+        fx = util.compile(inputs=[x1], outputs=n.outputs.values())
         np.testing.assert_equal(fx(a)[0], np.dot(a, w) + b)
 
     def test_Affine_relu(self):
@@ -348,7 +349,7 @@ class NodeTests(unittest.TestCase):
         n.input.connect(x1)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+        fx = util.compile(inputs=[x1], outputs=n.outputs.values())
         np.testing.assert_equal(fx(a)[0], __relu__(np.dot(a, w) + b))
 
     def test_Affine_dropout(self):
@@ -368,12 +369,12 @@ class NodeTests(unittest.TestCase):
         n.enable_dropout()
 
         n.input.connect(x1)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(nodes.UnconnectedNodeError):
             n.transform()
         n.dropout.connect(dropout)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1, dropout], outputs=n.outputs.values())
+        fx = util.compile(inputs=[x1, dropout], outputs=n.outputs.values())
 
         np.testing.assert_equal(fx(a, 0.0)[0], np.dot(a, w) + b)
         self.assertGreaterEqual(np.equal(fx(a, 0.9)[0], 0.0).sum(), 1)
@@ -408,7 +409,7 @@ class NodeTests(unittest.TestCase):
         n2.input.connect(x)
         n2.transform()
 
-        fx = nodes.compile(inputs=[x], outputs=n2.outputs.values())
+        fx = util.compile(inputs=[x], outputs=n2.outputs.values())
         np.testing.assert_equal(fx(a)[0], np.dot(a, w) + b)
 
         n1.weights.value *= 2
@@ -438,7 +439,7 @@ class NodeTests(unittest.TestCase):
         n.input.connect(x1)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+        fx = util.compile(inputs=[x1], outputs=n.outputs.values())
         np.testing.assert_equal(fx(a.reshape(1, 1, 2, 3))[0],
                                 z.reshape(1, 3, 1, 3))
 
@@ -470,7 +471,7 @@ class NodeTests(unittest.TestCase):
         n.input.connect(x1)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1], outputs=n.outputs.values())
+        fx = util.compile(inputs=[x1], outputs=n.outputs.values())
         np.testing.assert_equal(fx(a)[0], __relu__(z))
 
     def test_Conv3D_dropout(self):
@@ -501,12 +502,12 @@ class NodeTests(unittest.TestCase):
         n.bias.value = b
 
         n.input.connect(x1)
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(nodes.UnconnectedNodeError):
             n.transform()
         n.dropout.connect(dropout)
         n.transform()
 
-        fx = nodes.compile(inputs=[x1, dropout], outputs=n.outputs.values())
+        fx = util.compile(inputs=[x1, dropout], outputs=n.outputs.values())
 
         np.testing.assert_equal(fx(a, 0.0)[0], z)
         self.assertGreaterEqual(np.equal(fx(a, 0.9)[0], 0.0).sum(), 1)
@@ -524,10 +525,22 @@ class NodeTests(unittest.TestCase):
         n.input.connect(x)
         n.transform()
 
-        fx = nodes.compile(inputs=[x], outputs=n.outputs.values())
+        fx = util.compile(inputs=[x], outputs=n.outputs.values())
         z = np.power(a.reshape(2, 2, 1) - w.reshape(1, 2, 3),
                      2.0).sum(axis=1)
         np.testing.assert_equal(fx(a)[0], z)
+
+    def test_SliceGT(self):
+        x = core.Input(name='x', shape=(None,))
+
+        n = nodes.SliceGT(name='slice-greater', value=0)
+        n.input.connect(x)
+        n.transform()
+
+        fx = util.compile(inputs=[x], outputs=n.outputs.values())
+        a = np.array([1, -2, 0])
+        np.testing.assert_equal(fx(a)[0], np.array([1]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,7 +1,7 @@
 """Magic and hackery."""
 
 import json
-
+import numpy as np
 import theano
 import theano.tensor as T
 
@@ -31,6 +31,7 @@ from .nodes import Constant
 from .nodes import Dimshuffle
 from .nodes import Flatten
 from .nodes import Slice
+from .nodes import SliceGT
 from .nodes import L1Magnitude
 from .nodes import L2Magnitude
 from .nodes import Max
@@ -62,15 +63,20 @@ from .nodes import CrossProduct
 from .nodes import SelectIndex
 from .nodes import MaxNotIndex
 from .nodes import MinNotIndex
+from .nodes import Euclidean
 from .nodes import SquaredEuclidean
 from .nodes import Divide
 from .nodes import Product
 
-# Old losses ... deprecated, don't use.
-from .losses import NegativeLogLikelihoodLoss
-from .losses import MeanSquaredErrorLoss
+# Scalar losses
+from .losses import NegativeLogLikelihood
+from .losses import MeanSquaredError
+from .losses import CrossEntropy
 from .losses import CrossEntropyLoss
 from .losses import WeightDecayPenalty
+from .losses import SimilarityMargin
+from .losses import ContrastiveMargin
+from .losses import PairwiseRank
 
 # Framework classes
 from .framework import ConnectionManager
@@ -101,11 +107,20 @@ def __str_convert__(obj):
         return obj
 
 
+def serialize(self, obj):
+    if isinstance(obj, np.ndarray):
+        obj = obj.tolist()
+    elif hasattr(obj, '__json__'):
+        obj = getattr(obj, '__json__', obj)
+
+    return obj
+
+
 class JSONSupport():
     """Context manager for temporary JSON support."""
     def __enter__(self):
         # Encoder returns the object's `__json__` property.
-        json.JSONEncoder.default = lambda self, jobj: jobj.__json__
+        json.JSONEncoder.default = serialize
 
         # Decoder looks for the class name, and calls it's class constructor.
         def decode(obj):

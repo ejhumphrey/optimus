@@ -1,20 +1,17 @@
 """TODO(ejhumphrey): write me."""
 from __future__ import print_function
 import numpy as np
-import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from theano.tensor.signal import downsample
+from theano.tensor.signal import pool
 
 from . import core
 from . import FLOATX
 from . import functions
 
 
-def compile(inputs, outputs):
-    return theano.function(inputs=[x.variable for x in inputs],
-                           outputs=[z.variable for z in outputs],
-                           allow_input_downcast=True)
+class UnconnectedNodeError(BaseException):
+    pass
 
 
 # --- Node Implementations ---
@@ -22,6 +19,7 @@ class Node(core.JObject):
     """
     Nodes in the graph perform parameter management and micro-math operations.
     """
+
     def __init__(self, name, **kwargs):
         """writeme."""
         self.name = name
@@ -44,12 +42,24 @@ class Node(core.JObject):
         set_outputs = all([p.variable for p in self.outputs.values()])
         return set_inputs and not set_outputs
 
+    def validate_ports(self):
+        if not self.is_ready():
+            status = self.port_status
+            status['name'] = self.name
+            raise UnconnectedNodeError(status)
+
     def reset(self):
         """TODO(ejhumphrey): write me."""
         for p in self.inputs.values():
             p.reset()
         for p in self.outputs.values():
             p.reset()
+
+    @property
+    def port_status(self):
+        return dict(
+            inputs={k: bool(p.variable) for k, p in self.inputs.items()},
+            outputs={k: bool(p.variable) for k, p in self.outputs.items()})
 
     @property
     def __json__(self):
@@ -129,35 +139,38 @@ class MultiInput(Node):
 
 class Add(MultiInput):
     """Summation node."""
+
     def transform(self):
         """writeme"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         self.output.variable = sum([x.variable for x in self._inputs])
         self.output.shape = self._inputs[0].shape
 
 
 class Concatenate(MultiInput):
     """Concatenate a set of inputs."""
+
     def __init__(self, name, num_inputs, axis=-1):
         MultiInput.__init__(self, name=name, num_inputs=num_inputs, axis=axis)
         self.axis = axis
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         self.output.variable = T.concatenate(
             [x.variable for x in self._inputs], axis=self.axis)
 
 
 class Stack(MultiInput):
     """Form a rank+1 tensor of a set of inputs; optionally reorder the axes."""
+
     def __init__(self, name, num_inputs, axes=None):
         MultiInput.__init__(self, name=name, num_inputs=num_inputs, axes=axes)
         self.axes = axes
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         output = T.stack(*list([x.variable for x in self._inputs]))
         if self.axes:
             output = T.transpose(output, axes=self.axes)
@@ -166,6 +179,7 @@ class Stack(MultiInput):
 
 class Constant(Node):
     """Single input / output nodes."""
+
     def __init__(self, name, shape):
         Node.__init__(self, name=name, shape=shape)
         self.data = core.Parameter(shape=shape, name=self.__own__('data'))
@@ -174,12 +188,13 @@ class Constant(Node):
         self._outputs.append(self.output)
 
     def transform(self):
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
         self.output.variable = self.data.variable
 
 
 class Unary(Node):
     """Single input / output nodes."""
+
     def __init__(self, name, **kwargs):
         Node.__init__(self, name=name, **kwargs)
         self.input = core.Port(name=self.__own__('input'))
@@ -188,7 +203,7 @@ class Unary(Node):
         self._outputs.append(self.output)
 
     def transform(self):
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
 
 
 class Dimshuffle(Unary):
@@ -215,6 +230,7 @@ class Flatten(Unary):
 
 class Slice(Unary):
     """writeme"""
+
     def __init__(self, name, slices):
         # Input Validation
         Unary.__init__(self, name=name, slices=slices)
@@ -234,14 +250,16 @@ class Slice(Unary):
 
 
 class Log(Unary):
-    def __init__(self, name, epsilon=0.0):
-        Unary.__init__(self, name=name, epsilon=epsilon)
+    def __init__(self, name, epsilon=0.0, gain=1.0):
+        Unary.__init__(self, name=name, epsilon=epsilon, gain=gain)
         self.epsilon = epsilon
+        self.gain = gain
 
     def transform(self):
         """In-place transformation"""
         Unary.transform(self)
-        self.output.variable = T.log(self.input.variable + self.epsilon)
+        self.output.variable = T.log(
+            self.gain * self.input.variable + self.epsilon)
 
 
 class Sqrt(Unary):
@@ -277,6 +295,7 @@ class Sigmoid(Unary):
 
 class Softmax(Unary):
     """Apply the softmax to an input."""
+
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -288,6 +307,7 @@ class Softmax(Unary):
 
 class RectifiedLinear(Unary):
     """Apply the (hard) rectified linear function to an input."""
+
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -299,6 +319,7 @@ class RectifiedLinear(Unary):
 
 class SoftRectifiedLinear(Unary):
     """Apply the (hard) rectified linear function to an input."""
+
     def __init__(self, name, knee):
         Unary.__init__(self, name=name, knee=knee)
         self.knee = knee
@@ -312,6 +333,7 @@ class SoftRectifiedLinear(Unary):
 
 class Tanh(Unary):
     """Apply the hyperbolic tangent to an input."""
+
     def __init__(self, name):
         Unary.__init__(self, name=name)
 
@@ -321,8 +343,26 @@ class Tanh(Unary):
         self.output.variable = T.tanh(self.input.variable)
 
 
+class SliceGT(Unary):
+    """Return a """
+
+    def __init__(self, name, value):
+        Unary.__init__(self, name=name, value=value)
+        self.value = value
+
+    def transform(self):
+        """In-place transformation"""
+        Unary.transform(self)
+        if self.input.variable.ndim != 1:
+            raise ValueError("`input` must be a vector.")
+
+        idx = self.input.variable > self.value
+        self.output.variable = self.input.variable[idx.nonzero()]
+
+
 class Sum(Unary):
     """Returns the sum of an input, or over a given axis."""
+
     def __init__(self, name, axis=None):
         Unary.__init__(self, name=name, axis=axis)
         self.axis = axis
@@ -400,7 +440,7 @@ class Multiply(Unary):
         """In-place transformation"""
         Unary.transform(self)
         weight = self.weight.variable
-        if not self.broadcast is None:
+        if self.broadcast is not None:
             weight = T.addbroadcast(weight, *self.broadcast)
         self.output.variable = self.input.variable * weight
 
@@ -454,6 +494,7 @@ class Affine(Unary):
         x_in = T.flatten(self.input.variable, outdim=2)
         z_out = self.activation(T.dot(x_in, weights) + bias)
         if self.dropout:
+            # TODO: Logging
             print("Performing dropout in {}".format(self.name))
             dropout = self.dropout.variable
             selector = self._theano_rng.binomial(
@@ -649,8 +690,8 @@ class Conv3D(Unary):
                 size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
             output *= selector.dimshuffle('x', 0, 'x', 'x') / (1.0 - dropout)
 
-        output = downsample.max_pool_2d(
-            output, self.pool_shape, ignore_border=False)
+        output = pool.pool_2d(
+            output, self.pool_shape, ignore_border=False, mode='max')
         self.output.variable = output
 
 
@@ -734,8 +775,8 @@ class Conv2D(Node):
 
         z_out = self.activation(z_out + b.dimshuffle('x', 0, 'x', 'x'))
         z_out *= selector.dimshuffle('x', 0, 'x', 'x') * (self.dropout + 0.5)
-        return downsample.max_pool_2d(
-            z_out, self.get("pool_shape"), ignore_border=False)
+        return pool.pool_2d(z_out, self.get("pool_shape"),
+                            ignore_border=False, mode='max')
 
 
 class CrossProduct(Node):
@@ -772,7 +813,7 @@ class CrossProduct(Node):
 
     def transform(self):
         """In-place transformation"""
-        assert self.is_ready(), "Not all ports are set."
+        self.validate_ports()
 
         in_a = self.input_a.variable.dimshuffle(0, 1, 'x')
         in_b = self.input_b.variable.dimshuffle(0, 'x', 1)
@@ -846,7 +887,7 @@ class SelectIndex(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         assert self.input.variable.ndim == 2
         col_index = self.index.variable
         row_index = T.arange(col_index.shape[0], dtype='int32')
@@ -866,7 +907,7 @@ class MaxNotIndex(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         index = self.index.variable
         input_var = self.input.variable
         assert input_var.ndim == 2
@@ -886,7 +927,7 @@ class MinNotIndex(Node):
 
     def transform(self):
         """writeme"""
-        assert self.is_ready()
+        self.validate_ports()
         index = self.index.variable
         input_var = self.input.variable
         assert input_var.ndim == 2
@@ -907,19 +948,37 @@ class Binary(Node):
         self._outputs.append(self.output)
 
 
-class SquaredEuclidean(Binary):
-    """Squared Euclidean Node
+class Euclidean(Binary):
+    """Euclidean Node
 
-    Computes: z_n = \sum_i(xA_n[i] - xB_n[i])^2
+    Computes: z_n = \sqrt{\sum_i (xA_n[i] - xB_n[i])^2}
 
     See also: RadialBasis, which maintains internal parameters.
     """
-    def __init__(self, name):
-        Binary.__init__(self, name=name)
-
     def transform(self):
         """Transform inputs to outputs."""
-        assert self.is_ready()
+        self.validate_ports()
+        if self.input_a.variable.ndim >= 2:
+            xA = T.flatten(self.input_a.variable, outdim=2)
+            xB = T.flatten(self.input_b.variable, outdim=2)
+            axis = 1
+        else:
+            xA = self.input_a.variable
+            xB = self.input_b.variable
+            axis = None
+        self.output.variable = T.sqrt(T.pow(xA - xB, 2.0).sum(axis=axis))
+
+
+class SquaredEuclidean(Binary):
+    """Squared Euclidean Node
+
+    Computes: z_n = \sum_i (xA_n[i] - xB_n[i])^2
+
+    See also: RadialBasis, which maintains internal parameters.
+    """
+    def transform(self):
+        """Transform inputs to outputs."""
+        self.validate_ports()
         if self.input_a.variable.ndim >= 2:
             xA = T.flatten(self.input_a.variable, outdim=2)
             xB = T.flatten(self.input_b.variable, outdim=2)
@@ -936,12 +995,9 @@ class Product(Binary):
 
     See also: Multiply, which maintains internal parameters.
     """
-    def __init__(self, name):
-        Binary.__init__(self, name=name)
-
     def transform(self):
         """Transform inputs to outputs."""
-        assert self.is_ready()
+        self.validate_ports()
         self.output.variable = self.input_a.variable * self.input_b.variable
 
 
@@ -957,30 +1013,30 @@ class Divide(Node):
 
     def transform(self):
         """Transform inputs to outputs."""
-        assert self.is_ready()
+        self.validate_ports()
         denom = (self.denominator.variable == 0) + self.denominator.variable
         self.output.variable = self.numerator.variable / denom
 
 
 class L1Magnitude(Unary):
     def __init__(self, name, axis=None):
-        Unary.__init__(self, name=name, axis=None)
+        super(L1Magnitude, self).__init__(name=name, axis=None)
         self.axis = axis
 
     def transform(self):
         """writeme"""
-        Unary.transform(self)
+        super(L1Magnitude, self).transform()
         self.output.variable = T.sum(T.abs_(self.input.variable),
                                      axis=self.axis)
 
 
 class L2Magnitude(Unary):
     def __init__(self, name, axis=None):
-        Unary.__init__(self, name=name, axis=None)
+        super(L2Magnitude, self).__init__(name=name, axis=None)
         self.axis = axis
 
     def transform(self):
         """writeme"""
-        Unary.transform(self)
+        super(L2Magnitude, self).transform()
         self.output.variable = T.sqrt(T.sum(T.pow(self.input.variable, 2.0),
                                             axis=self.axis))
