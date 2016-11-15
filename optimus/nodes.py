@@ -3,7 +3,7 @@ from __future__ import print_function
 import numpy as np
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
-from theano.tensor.signal import downsample
+from theano.tensor.signal import pool
 
 from . import core
 from . import FLOATX
@@ -690,8 +690,8 @@ class Conv3D(Unary):
                 size=self.bias.shape, p=1.0 - dropout).astype(FLOATX)
             output *= selector.dimshuffle('x', 0, 'x', 'x') / (1.0 - dropout)
 
-        output = downsample.max_pool_2d(
-            output, self.pool_shape, ignore_border=False)
+        output = pool.pool_2d(
+            output, self.pool_shape, ignore_border=False, mode='max')
         self.output.variable = output
 
 
@@ -775,8 +775,8 @@ class Conv2D(Node):
 
         z_out = self.activation(z_out + b.dimshuffle('x', 0, 'x', 'x'))
         z_out *= selector.dimshuffle('x', 0, 'x', 'x') * (self.dropout + 0.5)
-        return downsample.max_pool_2d(
-            z_out, self.get("pool_shape"), ignore_border=False)
+        return pool.pool_2d(z_out, self.get("pool_shape"),
+                            ignore_border=False, mode='max')
 
 
 class CrossProduct(Node):

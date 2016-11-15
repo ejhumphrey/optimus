@@ -76,12 +76,12 @@ def test_convergence(workspace):
                             parameter_cache=params,
                             log_file='training_stats.csv')
 
-    hyperparams = dict(learning_rate=0.02)
-    stats = driver.fit(stream, hyperparams=hyperparams, save_freq=500,
-                       print_freq=500, max_iter=5000)
+    hyperparams = dict(learning_rate=0.1)
+    stats = driver.fit(stream, hyperparams=hyperparams, save_freq=250,
+                       print_freq=100, max_iter=1000)
 
     # Verify that the output stats and checkpointed params make sense.
-    num_checkpoints = 10
+    num_checkpoints = 4
     assert stats.loss.iloc[0] > stats.loss.iloc[-1]
     assert len(params) == num_checkpoints
     assert stats.key.isin(params.keys()).sum() == num_checkpoints
@@ -97,4 +97,4 @@ def test_convergence(workspace):
         print("Key: {}\t Accuracy: {}".format(key, acc))
 
     # And confirm that the model's accuracy should be hovering around perfect
-    assert acc > 0.9
+    assert acc > 0.85

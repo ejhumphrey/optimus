@@ -8,6 +8,8 @@
 *.pyc
 *.so
 .ipynb_checkpoints
+.cache
+.coverage 
 
 # Packages #
 ############
