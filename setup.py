@@ -34,6 +34,7 @@ setup(
     license='ISC',
     install_requires=[
         'numpy >= 1.8.0',
-        'theano >= 0.7.0'
+        'theano >= 0.8.0',
+        'pandas >= 0.18'
     ]
 )
