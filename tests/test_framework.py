@@ -45,7 +45,7 @@ def build_model():
         updates=update_manager.connections,
         verbose=True)
 
-    optimus.random_init(classifier.weights)
+    optimus.random_init(classifier.weights, seed=123)
 
     predictor_edges = optimus.ConnectionManager([
         (x_in, layer0.input),
@@ -63,11 +63,11 @@ def build_model():
 
 
 def test_convergence(workspace):
-    stream1 = sources.parabola((-2, 2), 2.5)
-    stream2 = sources.gaussian2d((0, 5), (0.25, 0.5))
+    stream1 = sources.parabola((-2, 2), 2.5, seed=159)
+    stream2 = sources.gaussian2d((0, 5), (0.25, 0.5), seed=5)
 
-    stream = sources.batch(streams=[stream1, stream2], batch_size=50,
-                           probs=[0.5, 0.5])
+    stream = sources.batch(streams=[stream1, stream2], batch_size=32,
+                           probs=[0.5, 0.5], seed=13)
 
     trainer, predictor = build_model()
     # params = biggie.Stash(os.path.join(workspace, 'params.hdf5'))
@@ -97,4 +97,4 @@ def test_convergence(workspace):
         print("Key: {}\t Accuracy: {}".format(key, acc))
 
     # And confirm that the model's accuracy should be hovering around perfect
-    assert acc > 0.85
+    assert acc > 0.96

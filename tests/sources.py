@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def parabola(xlim=(-5, 5), scale=1, offset=(0, 0)):
+def parabola(xlim=(-5, 5), scale=1, offset=(0, 0), seed=None):
     """Sample from a parabolic distribution:
 
         y = scale * (x - offset[0]) ** 2 + offset[1]
@@ -17,19 +17,23 @@ def parabola(xlim=(-5, 5), scale=1, offset=(0, 0)):
     offset : tuple, len=2
         X and Y coordinate offsets.
 
+    seed : int, default=None
+        Random state for random number generation.
+
     Yields
     ------
     xy : ndarray, shape=(2,)
         An (x, y) coordinate pair.
     """
+    rng = np.random.RandomState(seed)
     assert len(xlim) == 2
     while True:
-        x = np.random.rand()*np.abs(np.diff(xlim)) + xlim[0]
+        x = rng.rand() * np.abs(np.diff(xlim)) + xlim[0]
         y = scale * np.power(x - offset[0], 2.0) - offset[1]
         yield np.array([x, y]).squeeze()
 
 
-def gaussian2d(means, stds):
+def gaussian2d(means, stds, seed=None):
     """Sample from a Gaussian (normal) distribution.
 
     Parameters
@@ -40,19 +44,23 @@ def gaussian2d(means, stds):
     std : tuple, len=2
         Sample standard deviations for (x, y).
 
+    seed : int, default=None
+        Random state for random number generation.
+
     Yields
     ------
     xy : ndarray, shape=(2,)
         An (x, y) coordinate pair.
     """
+    rng = np.random.RandomState(seed)
     assert len(means) == len(stds) == 2
     while True:
-        x = np.random.normal(loc=means[0], scale=stds[0])
-        y = np.random.normal(loc=means[1], scale=stds[1])
+        x = rng.normal(loc=means[0], scale=stds[0])
+        y = rng.normal(loc=means[1], scale=stds[1])
         yield np.array([x, y])
 
 
-def merge(streams, probs=None):
+def merge(streams, probs=None, seed=None):
     """Stochastically merge a collection of streams.
 
     Parameters
@@ -64,19 +72,23 @@ def merge(streams, probs=None):
         Probability of drawing a sample from each stream; if None,
         a uniform distribution is used.
 
+    seed : int, default=None
+        Random state for random number generation.
+
     Yields
     ------
     Same as streams[i]
     """
+    rng = np.random.RandomState(seed)
     if probs is None:
         probs = np.ones(len(streams))
     probs = np.asarray(probs, dtype=float) / np.sum(probs)
     while True:
-        idx = np.random.choice(len(streams), p=probs)
+        idx = rng.choice(len(streams), p=probs)
         yield next(streams[idx])
 
 
-def batch(streams, batch_size, probs=None):
+def batch(streams, batch_size, probs=None, seed=None):
     """Batch sample a collection of streams.
 
     Parameters
@@ -91,6 +103,9 @@ def batch(streams, batch_size, probs=None):
         Probability of drawing a sample from each stream; if None,
         a uniform distribution is used.
 
+    seed : int, default=None
+        Random state for random number generation.
+
     Yields
     ------
     data : dict
@@ -98,6 +113,8 @@ def batch(streams, batch_size, probs=None):
         Note that y_target corresponds to the index of the stream from
         which the observation came.
     """
+    rng = np.random.RandomState(seed)
+
     if probs is None:
         probs = np.ones(len(streams))
 
@@ -105,7 +122,7 @@ def batch(streams, batch_size, probs=None):
     while True:
         x_input, y_target = [], []
         while len(y_target) < batch_size:
-            idx = np.random.choice(len(streams), p=probs)
+            idx = rng.choice(len(streams), p=probs)
             x_input.append(next(streams[idx]))
             y_target.append(idx)
         yield dict(x_input=np.array(x_input), y_target=np.array(y_target))

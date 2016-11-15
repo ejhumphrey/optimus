@@ -23,7 +23,7 @@ def compile(inputs, outputs):
                            allow_input_downcast=True)
 
 
-def random_init(param, mean=0.0, std=0.025):
+def random_init(param, mean=0.0, std=0.025, seed=None):
     """Initialize a parameter from a normal distribution.
 
     Parameters
@@ -35,7 +35,8 @@ def random_init(param, mean=0.0, std=0.025):
     std : scalar
         Standard deviation of the distribution.
     """
-    param.value = np.random.normal(mean, std, size=param.shape)
+    rng = np.random.RandomState(seed)
+    param.value = rng.normal(mean, std, size=param.shape)
 
 
 def array_stepper(value, length, stride=1, axis=0,

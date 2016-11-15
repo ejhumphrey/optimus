@@ -32,7 +32,7 @@ install:
 
 script:
     - python --version
-    - py.test -v --cov=optimus ./tests
+    - py.test -vs --cov=optimus ./tests
 
 after_success:
     - coveralls
